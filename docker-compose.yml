@@ -1,0 +1,51 @@
+# Dev:        docker compose up -d db          (chỉ chạy PostgreSQL)
+# Production: docker compose --profile prod up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: qltk-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qltk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qltk_dev_password}
+      POSTGRES_DB: qltk
+    ports:
+      - "5433:5432"
+    volumes:
+      - qltk_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qltk"]
+      interval: 5s
+      retries: 10
+
+  # Chạy 1 lần để migrate + seed danh mục nền (không có dữ liệu mẫu)
+  init:
+    profiles: ["prod"]
+    build: { context: ., target: builder }
+    environment:
+      DATABASE_URL: postgresql://qltk:${POSTGRES_PASSWORD:-qltk_dev_password}@db:5432/qltk?schema=public
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Đặt SEED_ADMIN_PASSWORD}
+    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
+    depends_on:
+      db: { condition: service_healthy }
+
+  app:
+    profiles: ["prod"]
+    build: { context: ., target: runner }
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://qltk:${POSTGRES_PASSWORD:-qltk_dev_password}@db:5432/qltk?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?Đặt AUTH_SECRET (>=32 ký tự)}
+      UPLOAD_DIR: /app/storage/uploads
+      BACKUP_DIR: /app/storage/backups
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+    ports:
+      - "3000:3000"
+    volumes:
+      - qltk_storage:/app/storage
+    depends_on:
+      init: { condition: service_completed_successfully }
+
+volumes:
+  qltk_pgdata:
+  qltk_storage:

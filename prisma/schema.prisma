@@ -1,0 +1,665 @@
+// =============================================================
+//  HỆ THỐNG QUẢN LÝ TRÌNH KÝ HỒ SƠ - Prisma schema (PostgreSQL)
+// =============================================================
+//  Nguyên tắc thiết kế:
+//  - Danh mục (catalog) tách bảng riêng, có cờ `active` để vô hiệu hóa thay vì xóa cứng.
+//  - Lịch sử (trạng thái, trình ký, trả hồ sơ, luân chuyển) chỉ ghi thêm, không ghi đè.
+//  - Hồ sơ xóa mềm (deletedAt) để giữ nguyên lịch sử và số liệu thống kê đã phát sinh.
+//  - `isSample` đánh dấu dữ liệu mẫu, có thể lọc/xóa riêng khỏi dữ liệu chính thức.
+// =============================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+  VIEWER
+}
+
+/// Phạm vi dữ liệu người dùng được xem
+enum DataScope {
+  ALL // toàn hệ thống
+  DEPARTMENT // hồ sơ của bộ phận mình
+  PROJECT // hồ sơ thuộc các công trình được phân công
+  OWN // hồ sơ do mình lập / trình / được giao xử lý
+}
+
+/// Nhóm trạng thái - quyết định logic nghiệp vụ, trạng thái tùy chỉnh phải gắn vào 1 nhóm
+enum StatusCategory {
+  DRAFT // Đang chuẩn bị, chờ trình
+  SUBMITTED // Đã trình / trình lại, đang nằm ở bên nhận
+  REVIEWING // Đang kiểm tra / chờ phê duyệt
+  RETURNED // Bị trả lại
+  REVISING // Đang bổ sung/chỉnh sửa
+  APPROVED // Đã ký duyệt (chưa kết thúc quy trình)
+  COMPLETED // Đã hoàn thành toàn bộ quy trình
+  CANCELLED // Đã hủy
+}
+
+enum SubmissionResult {
+  PENDING
+  APPROVED
+  RETURNED
+  WITHDRAWN
+}
+
+enum FixStatus {
+  OPEN // chưa xử lý
+  IN_PROGRESS // đang chỉnh sửa
+  FIXED // đã chỉnh sửa xong, chờ trình lại
+  CLOSED // đã trình lại / đóng
+}
+
+enum ActivityType {
+  CREATE
+  UPDATE
+  SUBMIT
+  RESUBMIT
+  FORWARD
+  RETURN
+  START_REVISION
+  FINISH_REVISION
+  APPROVE
+  COMPLETE
+  CANCEL
+  STATUS_CHANGE
+  NOTE
+  ATTACH
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  BOOLEAN
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users            User[]
+  divisions        Division[]
+  documents        Document[]         @relation("DocDepartment")
+  holdingDocuments Document[]         @relation("DocCurrentDepartment")
+  recipients       Recipient[]
+  workflowSteps    WorkflowStep[]
+  activities       DocumentActivity[]
+  returnsFrom      DocumentReturn[]   @relation("ReturnFromDept")
+  returnsTo        DocumentReturn[]   @relation("ReturnToDept")
+}
+
+/// Khối thuộc phòng ban (vd Phòng Dự án: Khối Phát triển dự án, Khối Thi công dự án). Mỗi khối có Phụ trách liên quan riêng; trên các khối là 1 Quản lý phòng ban.
+model Division {
+  id           String     @id @default(cuid())
+  code         String     @unique
+  name         String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  users User[]
+
+  @@index([departmentId])
+}
+
+model User {
+  id           String      @id @default(cuid())
+  username     String      @unique
+  passwordHash String
+  fullName     String
+  email        String?
+  phone        String?
+  position     String? // chức danh
+  role         Role        @default(STAFF)
+  dataScope    DataScope   @default(OWN)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  /// Khối (bắt buộc với Nhân viên / Phụ trách liên quan khi phòng ban có khối; Quản lý phòng ban không thuộc khối)
+  divisionId   String?
+  division     Division?   @relation(fields: [divisionId], references: [id])
+  active       Boolean     @default(true)
+  /// Phân quyền duyệt (chuẩn bị cho luồng Quản lý duyệt thay người lập xác nhận - hiện chỉ lưu, chưa dùng trong nghiệp vụ)
+  isRelatedPerson Boolean  @default(false) // Phụ trách liên quan
+  isDeptManager   Boolean  @default(false) // Quản lý phòng
+  /// Xóa khỏi hệ thống (xóa mềm để giữ nguyên lịch sử hồ sơ đã phát sinh)
+  deletedAt    DateTime?
+  /// Cấu hình giao diện cá nhân (cột bảng, bộ lọc mặc định...)
+  preferences  Json?
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  projects           ProjectMember[]
+  preparedDocuments  Document[]              @relation("DocPreparer")
+  submittedDocuments Document[]              @relation("DocSubmitter")
+  holdingDocuments   Document[]              @relation("DocHolder")
+  createdDocuments   Document[]              @relation("DocCreatedBy")
+  statusChanges      DocumentStatusHistory[]
+  submissions        DocumentSubmission[]
+  returnsReceived    DocumentReturn[]        @relation("ReturnReceiver")
+  returnsResponsible DocumentReturn[]        @relation("ReturnResponsible")
+  returnsRecorded    DocumentReturn[]        @relation("ReturnRecordedBy")
+  errorsResponsible  DocumentError[]
+  activities         DocumentActivity[]
+  attachments        Attachment[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  recipientProfile   Recipient[]
+  signingForms       SigningForm[]
+  signingFormPrints  SigningFormPrint[]
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  investor    String? // chủ đầu tư
+  location    String?
+  startDate   DateTime?
+  endDate     DateTime?
+  description String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  members   ProjectMember[]
+  documents Document[]
+  partners  ProjectPartner[]
+}
+
+/// Chủ đầu tư / NCC / thầu phụ tham gia dự án - phiếu trình ký chỉ chọn trong danh sách này
+model ProjectPartner {
+  projectId    String
+  contractorId String
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contractor   Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, contractorId])
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+}
+
+/// Nhà thầu / đơn vị liên quan
+model Contractor {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  taxCode   String?
+  contact   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents Document[]
+  projects  ProjectPartner[]
+}
+
+/// Quy trình xử lý (danh mục) - gồm các bước có thời gian tiêu chuẩn
+model Workflow {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps         WorkflowStep[]
+  documentTypes DocumentType[]
+}
+
+/// Bước trong quy trình + thời gian xử lý tiêu chuẩn
+model WorkflowStep {
+  id           String      @id @default(cuid())
+  workflowId   String
+  workflow     Workflow    @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  order        Int
+  name         String
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  /// Thời gian xử lý tiêu chuẩn của bước (ngày làm việc quy đổi theo ngày lịch)
+  slaDays      Float       @default(2)
+  active       Boolean     @default(true)
+
+  documents   Document[]
+  activities  DocumentActivity[]
+  submissions DocumentSubmission[]
+
+  @@unique([workflowId, order])
+}
+
+model DocumentType {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  name           String
+  description    String?
+  /// Thời gian xử lý tiêu chuẩn toàn hồ sơ (ngày) - dùng để tính hạn xử lý mặc định
+  defaultSlaDays Int       @default(7)
+  workflowId     String?
+  workflow       Workflow? @relation(fields: [workflowId], references: [id])
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  documents Document[]
+}
+
+model DocumentStatus {
+  id        String         @id @default(cuid())
+  code      String         @unique
+  name      String
+  category  StatusCategory
+  color     String         @default("#64748b")
+  order     Int            @default(0)
+  /// Trạng thái hệ thống: không xóa được, logic nghiệp vụ tham chiếu theo code
+  isSystem  Boolean        @default(false)
+  active    Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  documents   Document[]
+  historyFrom DocumentStatusHistory[] @relation("HistFrom")
+  historyTo   DocumentStatusHistory[] @relation("HistTo")
+  activities  DocumentActivity[]
+}
+
+/// Người / đơn vị nhận trình ký (có thể là người nội bộ hoặc bên ngoài: CĐT, TVGS, BQLDA)
+model Recipient {
+  id           String      @id @default(cuid())
+  name         String
+  title        String? // chức vụ
+  organization String? // đơn vị
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  documents   Document[]
+  submissions DocumentSubmission[]
+  returns     DocumentReturn[]
+}
+
+/// Nhóm lỗi
+model ErrorCategory {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String?
+  order        Int      @default(0)
+  /// Lỗi thuộc trách nhiệm người lập/xử lý (true) hay do nguyên nhân khách quan (false).
+  /// Chỉ lỗi có trách nhiệm mới tính vào đánh giá hiệu suất cá nhân.
+  attributable Boolean  @default(true)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reasons ErrorReason[]
+  errors  DocumentError[]
+}
+
+/// Nguyên nhân trả hồ sơ (lỗi cụ thể trong nhóm)
+model ErrorReason {
+  id         String        @id @default(cuid())
+  categoryId String
+  category   ErrorCategory @relation(fields: [categoryId], references: [id])
+  code       String        @unique
+  name       String
+  order      Int           @default(0)
+  active     Boolean       @default(true)
+
+  errors DocumentError[]
+}
+
+/// Trường dữ liệu mở rộng do quản trị viên định nghĩa
+model CustomField {
+  id       String          @id @default(cuid())
+  key      String          @unique
+  label    String
+  type     CustomFieldType @default(TEXT)
+  options  String[] // dùng cho SELECT
+  required Boolean         @default(false)
+  order    Int             @default(0)
+  active   Boolean         @default(true)
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  /// Mã hồ sơ tự sinh: HS-YYYY-NNNNN
+  code         String       @unique
+  /// Số hiệu văn bản/hồ sơ
+  docNumber    String?
+  title        String
+  typeId       String
+  type         DocumentType @relation(fields: [typeId], references: [id])
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id])
+  contractorId String?
+  contractor   Contractor?  @relation(fields: [contractorId], references: [id])
+  departmentId String
+  department   Department   @relation("DocDepartment", fields: [departmentId], references: [id])
+  preparerId   String
+  preparer     User         @relation("DocPreparer", fields: [preparerId], references: [id])
+  submitterId  String?
+  submitter    User?        @relation("DocSubmitter", fields: [submitterId], references: [id])
+  recipientId  String?
+  recipient    Recipient?   @relation(fields: [recipientId], references: [id])
+
+  /// Vị trí hiện tại của hồ sơ
+  currentHolderId     String?
+  currentHolder       User?         @relation("DocHolder", fields: [currentHolderId], references: [id])
+  currentDepartmentId String?
+  currentDepartment   Department?   @relation("DocCurrentDepartment", fields: [currentDepartmentId], references: [id])
+  currentHolderNote   String? // vd: "TVGS - Công ty ABC" khi hồ sơ nằm ở bên ngoài
+  currentStepId       String?
+  currentStep         WorkflowStep? @relation(fields: [currentStepId], references: [id])
+
+  statusId String
+  status   DocumentStatus @relation(fields: [statusId], references: [id])
+  priority Int            @default(2) // 1 cao, 2 bình thường, 3 thấp
+
+  preparedDate     DateTime // ngày lập
+  firstSubmittedAt DateTime? // ngày trình lần đầu
+  lastSubmittedAt  DateTime? // ngày trình gần nhất (trình lại)
+  dueDate          DateTime? // hạn xử lý
+  approvedAt       DateTime? // ngày ký duyệt
+  completedAt      DateTime? // ngày hoàn thành toàn bộ quy trình
+  cancelledAt      DateTime?
+  lastActivityAt   DateTime  @default(now())
+
+  /// Số liệu tổng hợp (được cập nhật trong cùng transaction với bản ghi gốc)
+  submissionCount Int @default(0)
+  returnCount     Int @default(0)
+
+  notes        String?
+  customFields Json?
+  isSample     Boolean   @default(false)
+  createdById  String
+  createdBy    User      @relation("DocCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  statusHistory DocumentStatusHistory[]
+  submissions   DocumentSubmission[]
+  returns       DocumentReturn[]
+  activities    DocumentActivity[]
+  attachments   Attachment[]
+  notifications Notification[]
+  signingForms  SigningForm[]
+
+  @@index([projectId])
+  @@index([typeId])
+  @@index([statusId])
+  @@index([departmentId])
+  @@index([preparerId])
+  @@index([dueDate])
+  @@index([preparedDate])
+  @@index([deletedAt])
+}
+
+/// Lịch sử thay đổi trạng thái - chỉ ghi thêm
+model DocumentStatusHistory {
+  id            String          @id @default(cuid())
+  documentId    String
+  document      Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  fromStatusId  String?
+  fromStatus    DocumentStatus? @relation("HistFrom", fields: [fromStatusId], references: [id])
+  toStatusId    String
+  toStatus      DocumentStatus  @relation("HistTo", fields: [toStatusId], references: [id])
+  changedById   String
+  changedBy     User            @relation(fields: [changedById], references: [id])
+  changedAt     DateTime        @default(now())
+  note          String?
+  /// Thời gian (giờ) hồ sơ ở trạng thái trước đó
+  durationHours Float?
+
+  @@index([documentId, changedAt])
+}
+
+/// Mỗi lần trình ký là một bản ghi riêng
+model DocumentSubmission {
+  id            String           @id @default(cuid())
+  documentId    String
+  document      Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  round         Int // lần trình thứ n
+  submittedAt   DateTime
+  submittedById String
+  submittedBy   User             @relation(fields: [submittedById], references: [id])
+  recipientId   String?
+  recipient     Recipient?       @relation(fields: [recipientId], references: [id])
+  stepId        String?
+  step          WorkflowStep?    @relation(fields: [stepId], references: [id])
+  dueDate       DateTime?
+  result        SubmissionResult @default(PENDING)
+  resultAt      DateTime?
+  note          String?
+
+  returns DocumentReturn[]
+
+  @@unique([documentId, round])
+  @@index([submittedAt])
+}
+
+/// Mỗi lần hồ sơ bị trả là một bản ghi riêng; một lần trả có thể có nhiều lỗi
+model DocumentReturn {
+  id                    String              @id @default(cuid())
+  documentId            String
+  document              Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  submissionId          String?
+  submission            DocumentSubmission? @relation(fields: [submissionId], references: [id])
+  returnedAt            DateTime
+  /// Người/bộ phận trả hồ sơ
+  returnedByRecipientId String?
+  returnedByRecipient   Recipient?          @relation(fields: [returnedByRecipientId], references: [id])
+  returnedByName        String?
+  fromDepartmentId      String?
+  fromDepartment        Department?         @relation("ReturnFromDept", fields: [fromDepartmentId], references: [id])
+  /// Người/bộ phận nhận lại hồ sơ
+  receivedById          String?
+  receivedBy            User?               @relation("ReturnReceiver", fields: [receivedById], references: [id])
+  toDepartmentId        String?
+  toDepartment          Department?         @relation("ReturnToDept", fields: [toDepartmentId], references: [id])
+  requirement           String? // yêu cầu chỉnh sửa/bổ sung
+  responsibleId         String?
+  responsible           User?               @relation("ReturnResponsible", fields: [responsibleId], references: [id])
+  requiredFixDate       DateTime?
+  fixedAt               DateTime?
+  fixStatus             FixStatus           @default(OPEN)
+  fixNote               String?
+  recordedById          String
+  recordedBy            User                @relation("ReturnRecordedBy", fields: [recordedById], references: [id])
+  createdAt             DateTime            @default(now())
+
+  errors      DocumentError[]
+  attachments Attachment[]
+
+  @@index([documentId])
+  @@index([returnedAt])
+}
+
+/// Lỗi cụ thể trong một lần trả
+model DocumentError {
+  id            String         @id @default(cuid())
+  returnId      String
+  return        DocumentReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      ErrorCategory  @relation(fields: [categoryId], references: [id])
+  reasonId      String?
+  reason        ErrorReason?   @relation(fields: [reasonId], references: [id])
+  customReason  String? // nguyên nhân tự nhập (nhóm Lỗi khác)
+  description   String?
+  responsibleId String?
+  responsible   User?          @relation(fields: [responsibleId], references: [id])
+  resolved      Boolean        @default(false)
+  resolvedAt    DateTime?
+
+  @@index([categoryId])
+  @@index([reasonId])
+}
+
+/// Bước luân chuyển / xử lý hồ sơ - dùng cho Timeline
+model DocumentActivity {
+  id            String          @id @default(cuid())
+  documentId    String
+  document      Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  type          ActivityType
+  actorId       String
+  actor         User            @relation(fields: [actorId], references: [id])
+  departmentId  String?
+  department    Department?     @relation(fields: [departmentId], references: [id])
+  /// Bên xử lý ở bước này (có thể là đơn vị bên ngoài)
+  handlerName   String?
+  stepId        String?
+  step          WorkflowStep?   @relation(fields: [stepId], references: [id])
+  statusId      String?
+  status        DocumentStatus? @relation(fields: [statusId], references: [id])
+  startedAt     DateTime        @default(now())
+  endedAt       DateTime?
+  expectedDueAt DateTime?
+  content       String?
+  meta          Json?
+
+  attachments Attachment[]
+
+  @@index([documentId, startedAt])
+  @@index([actorId])
+}
+
+model Attachment {
+  id           String            @id @default(cuid())
+  documentId   String
+  document     Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  returnId     String?
+  return       DocumentReturn?   @relation(fields: [returnId], references: [id])
+  activityId   String?
+  activity     DocumentActivity? @relation(fields: [activityId], references: [id])
+  fileName     String
+  storedName   String            @unique
+  mimeType     String
+  size         Int
+  uploadedById String
+  uploadedBy   User              @relation(fields: [uploadedById], references: [id])
+  uploadedAt   DateTime          @default(now())
+  deletedAt    DateTime?
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  title      String
+  message    String
+  link       String?
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  /// Khóa chống trùng cho cảnh báo tự động (vd: overdue:<docId>:<yyyy-mm-dd>)
+  dedupeKey  String?   @unique
+  read       Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, read])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  detail    Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+/// Cấu hình hệ thống dạng key-value (ngưỡng cảnh báo, tiền tố mã...)
+model SystemSetting {
+  key       String   @id
+  value     String
+  label     String?
+  updatedAt DateTime @updatedAt
+}
+
+/// Bộ đếm sinh mã hồ sơ theo năm (tránh trùng khi tạo đồng thời)
+model Counter {
+  key   String @id
+  value Int    @default(0)
+}
+
+enum SigningFormStatus {
+  DRAFT // đang soạn, được sửa
+  PRINTED // đã in (đã xác nhận in) - khóa nội dung
+}
+
+/// Phiếu trình ký. Mỗi lần trình (lần đầu, trình lại lần 1, 2...) là một phiếu riêng (một phiên bản).
+model SigningForm {
+  id             String            @id @default(cuid())
+  /// Mã phiếu tự sinh: PTK-YYYY-NNNNN (mỗi phiên bản một mã)
+  code           String            @unique
+  documentId     String
+  document       Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  /// 0 = trình lần đầu; n = trình ký lại lần n
+  resubmitNo     Int               @default(0)
+  resubmitReason String?
+  /// Toàn bộ nội dung phiếu theo mẫu (lưu nguyên văn để in lại / đối chiếu)
+  content        Json
+  status         SigningFormStatus @default(DRAFT)
+  createdById    String
+  createdBy      User              @relation(fields: [createdById], references: [id])
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  /// Thời điểm xác nhận in lần đầu - mốc tính thời hạn in lại
+  printedAt      DateTime?
+  printCount     Int               @default(0)
+
+  prints SigningFormPrint[]
+
+  @@unique([documentId, resubmitNo])
+  @@index([createdById])
+  @@index([printedAt])
+}
+
+/// Nhật ký mỗi lần in (lần đầu + in lại)
+model SigningFormPrint {
+  id          String      @id @default(cuid())
+  formId      String
+  form        SigningForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  printedById String
+  printedBy   User        @relation(fields: [printedById], references: [id])
+  printedAt   DateTime    @default(now())
+  isReprint   Boolean     @default(false)
+
+  @@index([formId])
+}
