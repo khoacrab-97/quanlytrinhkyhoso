@@ -6,3 +6,4 @@ storage/
 next-env.d.ts
 .claude/
 google-apps-script/dev/.data.json
+logs/
