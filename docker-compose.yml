@@ -1,5 +1,6 @@
 # Dev:        docker compose up -d db          (chỉ chạy PostgreSQL)
 # Production: docker compose --profile prod up -d --build
+# Production + HTTPS (Caddy tự lấy chứng chỉ, cần biến DOMAIN): docker compose --profile prod --profile https up -d --build
 services:
   db:
     image: postgres:16-alpine
@@ -10,7 +11,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qltk_dev_password}
       POSTGRES_DB: qltk
     ports:
-      - "5433:5432"
+      # Chỉ mở cho chính máy chủ (không lộ CSDL ra Internet)
+      - "127.0.0.1:5433:5432"
     volumes:
       - qltk_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -46,6 +48,25 @@ services:
     depends_on:
       init: { condition: service_completed_successfully }
 
+  # Reverse proxy HTTPS (Let's Encrypt tự động) đứng trước app
+  caddy:
+    profiles: ["https"]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
 volumes:
+  caddy_data:
+  caddy_config:
   qltk_pgdata:
   qltk_storage:

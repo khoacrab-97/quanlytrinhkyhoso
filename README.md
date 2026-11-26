@@ -158,6 +158,10 @@ Các lệnh khác:
 
 ## 5. Triển khai production
 
+> **Hai phương án miễn phí để trình phê duyệt:** xem bảng so sánh tại [docs/SO-SANH-PHUONG-AN.md](docs/SO-SANH-PHUONG-AN.md).
+> - **Phương án 1:** app này trên **Oracle Cloud Free**. Cài bằng một lệnh, có HTTPS và sao lưu tự động: [deploy/oracle/HUONG-DAN.md](deploy/oracle/HUONG-DAN.md).
+> - **Phương án 2:** bản gọn chạy trên **Google Sheets + Apps Script**, làm mới dữ liệu mỗi năm: [google-apps-script/HUONG-DAN.md](google-apps-script/HUONG-DAN.md).
+
 ### Cách 1: Docker Compose (khuyến nghị)
 
 ```bash
@@ -165,6 +169,7 @@ export POSTGRES_PASSWORD='<mật khẩu DB mạnh>'
 export AUTH_SECRET="$(openssl rand -hex 32)"
 export SEED_ADMIN_PASSWORD='<mật khẩu admin ban đầu>'
 docker compose --profile prod up -d --build
+# Có HTTPS (Caddy tự lấy chứng chỉ): thêm DOMAIN=<tên miền> và --profile https
 ```
 
 - Service `init` chạy `prisma migrate deploy` và seed danh mục nền (không có dữ liệu mẫu) một lần.

@@ -5,3 +5,4 @@ storage/
 *.tsbuildinfo
 next-env.d.ts
 .claude/
+google-apps-script/dev/.data.json

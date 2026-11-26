@@ -1,0 +1,5 @@
+# HTTPS tự động cho app (Caddy lấy chứng chỉ Let's Encrypt theo biến DOMAIN)
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000
+}
