@@ -33,7 +33,7 @@
     "exceljs": "^4.4.0",
     "jose": "^6.1.0",
     "lucide-react": "^0.544.0",
-    "next": "^15.5.4",
+    "next": "^15.5.29",
     "pdfmake": "^0.2.20",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -62,5 +62,8 @@
     "prisma@6.16.2": true,
     "sharp@0.34.5": true,
     "@embedded-postgres/windows-x64@17.5.0-beta.15": true
+  },
+  "overrides": {
+    "postcss": "^8.5.33"
   }
 }
