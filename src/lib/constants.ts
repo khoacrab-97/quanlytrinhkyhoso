@@ -21,6 +21,16 @@ export const STAGES = [
   { code: STATUS.STAGE_CEO, label: "Chờ TGĐ ký", done: "Ban kiểm soát - Đã kiểm duyệt" },
   { code: STATUS.CEO_SIGNED, label: "TGĐ đã ký", done: "Tổng Giám Đốc - Đã ký" },
 ] as const;
+/** Danh mục được ủy quyền THÊM MỚI cho người dùng (trang Danh mục); các danh mục khác thuộc Quản trị hệ thống */
+export const DELEGABLE_CATALOGS = {
+  projects: "Công trình / dự án",
+  documentTypes: "Loại hồ sơ",
+  contractors: "CĐT / NCC / thầu phụ",
+  errorCategories: "Nhóm lỗi",
+  errorReasons: "Nguyên nhân trả hồ sơ",
+} as const;
+export type DelegableCatalog = keyof typeof DELEGABLE_CATALOGS;
+
 /** Nút xác nhận của người có thẩm quyền ở từng giai đoạn (theo trạng thái hiện tại của hồ sơ) */
 export const STAGE_CONFIRM_LABEL: Record<string, string> = {
   [STATUS.STAGE_CHECK]: "Xác nhận đã kiểm tra",

@@ -17,6 +17,8 @@ export type CurrentUser = {
   projectIds: string[];
   /** Thành viên Ban kiểm soát (phòng ban mã BKS): xem và xác nhận hồ sơ của mọi phòng ban */
   isBks: boolean;
+  /** Danh mục được ủy quyền thêm mới */
+  catalogGrants: string[];
   preferences: Record<string, unknown>;
 };
 
@@ -41,6 +43,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     position: u.position,
     projectIds: u.projects.map((p) => p.projectId),
     isBks: u.department?.code === BKS_DEPARTMENT_CODE,
+    catalogGrants: u.catalogGrants,
     preferences: (u.preferences as Record<string, unknown>) ?? {},
   };
 });

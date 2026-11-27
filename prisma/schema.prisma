@@ -139,6 +139,8 @@ model User {
   /// Phân quyền duyệt (chuẩn bị cho luồng Quản lý duyệt thay người lập xác nhận - hiện chỉ lưu, chưa dùng trong nghiệp vụ)
   isRelatedPerson Boolean  @default(false) // Phụ trách liên quan
   isDeptManager   Boolean  @default(false) // Quản lý phòng
+  /// Danh mục được ủy quyền THÊM MỚI (projects, documentTypes, contractors, errorCategories, errorReasons)
+  catalogGrants   String[] @default([])
   /// Xóa khỏi hệ thống (xóa mềm để giữ nguyên lịch sử hồ sơ đã phát sinh)
   deletedAt    DateTime?
   /// Cấu hình giao diện cá nhân (cột bảng, bộ lọc mặc định...)

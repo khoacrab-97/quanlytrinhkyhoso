@@ -11,7 +11,7 @@ import { fmtDateTime, toInputDate } from "@/lib/dates";
 import { can, ROLE_LABELS, type Permission, type RoleName } from "@/lib/permissions";
 import { Button, cx, Field, Modal, ToastProvider, useToast } from "./ui";
 
-export type ShellUser = { id: string; fullName: string; role: RoleName; departmentName: string | null; position: string | null; dataScope: string; preferences: Record<string, unknown> };
+export type ShellUser = { id: string; fullName: string; role: RoleName; departmentName: string | null; position: string | null; dataScope: string; preferences: Record<string, unknown>; catalogGrants: string[] };
 
 const UserCtx = createContext<ShellUser | null>(null);
 export const useMe = () => useContext(UserCtx)!;
@@ -193,7 +193,8 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
     router.push("/login");
     router.refresh();
   };
-  const nav = NAV.filter((n) => !n.perm || can(user.role, n.perm));
+  // Danh mục: Quản trị viên, hoặc người được ủy quyền thêm mới ít nhất một danh mục
+  const nav = NAV.filter((n) => !n.perm || can(user.role, n.perm) || (n.href === "/catalogs" && user.catalogGrants.length > 0));
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   const sidebar = (

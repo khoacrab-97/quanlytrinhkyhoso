@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { badRequest } from "@/server/api";
+import { DELEGABLE_CATALOGS, type DelegableCatalog } from "@/lib/constants";
 
 export const passwordSchema = z
   .string()
@@ -19,6 +20,8 @@ export const userSchema = z.object({
   divisionId: z.string().optional().nullable().transform((v) => v || null),
   /** Vai trò: Nhân viên / Phụ trách liên quan / Quản lý phòng ban / Quản trị viên (toàn quyền hệ thống) */
   approvalRole: z.enum(["STAFF", "RELATED", "DEPT_MANAGER", "ADMIN"]).default("STAFF"),
+  /** Danh mục được ủy quyền thêm mới */
+  catalogGrants: z.array(z.enum(Object.keys(DELEGABLE_CATALOGS) as [DelegableCatalog, ...DelegableCatalog[]])).default([]),
   active: z.boolean().default(true),
   password: passwordSchema.optional().or(z.literal("")).transform((v) => v || undefined),
 });
@@ -72,7 +75,7 @@ export const permissionSchema = z.object({
 
 export const userSelect = {
   id: true, username: true, fullName: true, email: true, phone: true, position: true, role: true, dataScope: true,
-  departmentId: true, active: true, lastLoginAt: true, createdAt: true, isRelatedPerson: true, isDeptManager: true,
+  departmentId: true, active: true, lastLoginAt: true, createdAt: true, isRelatedPerson: true, isDeptManager: true, catalogGrants: true,
   divisionId: true,
   department: { select: { id: true, name: true } },
   division: { select: { id: true, name: true } },

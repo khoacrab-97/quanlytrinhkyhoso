@@ -4,6 +4,8 @@ import { CheckCircle2, DatabaseBackup, Download, Pencil, Plus, Trash2 } from "lu
 import { api, download, qs, useApi, useLookups } from "@/lib/client";
 import { fmtDateTime } from "@/lib/dates";
 import { ROLE_LABELS } from "@/lib/permissions";
+import { DELEGABLE_CATALOGS } from "@/lib/constants";
+import { CatalogTable, DEFS } from "@/components/CatalogManager";
 import { useCan, useMe } from "@/components/AppShell";
 import { Badge, Button, Card, ErrorBox, Field, Modal, PageHeader, Pagination, Select, Spinner, Tabs, useConfirm, useToast } from "@/components/ui";
 
@@ -18,21 +20,22 @@ const ROLE_DESC: Record<string, string> = {
 };
 
 const APPROVAL_ROLES = [{ value: "STAFF", label: "Nhân viên" }, { value: "RELATED", label: "Phụ trách liên quan" }, { value: "DEPT_MANAGER", label: "Quản lý phòng ban" }, { value: "ADMIN", label: "Quản trị viên" }];
+const GRANT_OPTIONS = Object.entries(DELEGABLE_CATALOGS);
 const approvalRoleOf = (u: Any) => (u.role === "ADMIN" ? "ADMIN" : u.isDeptManager ? "DEPT_MANAGER" : u.isRelatedPerson ? "RELATED" : "STAFF");
 
 function UserEditor({ row, onClose, onSaved }: { row: Any | null; onClose: () => void; onSaved: () => void }) {
   const toast = useToast();
   const me = useMe();
   const { data: lk } = useLookups();
-  const [v, setV] = useState<Any>(() => row ? { ...row, password: "", approvalRole: approvalRoleOf(row), departmentId: row.departmentId ?? "", divisionId: row.divisionId ?? "", email: row.email ?? "", phone: row.phone ?? "", position: row.position ?? "" }
-    : { username: "", fullName: "", email: "", phone: "", position: "", departmentId: "", divisionId: "", approvalRole: "STAFF", active: true, password: "" });
+  const [v, setV] = useState<Any>(() => row ? { ...row, password: "", approvalRole: approvalRoleOf(row), departmentId: row.departmentId ?? "", divisionId: row.divisionId ?? "", email: row.email ?? "", phone: row.phone ?? "", position: row.position ?? "", catalogGrants: row.catalogGrants ?? [], delegate: (row.catalogGrants ?? []).length > 0 }
+    : { username: "", fullName: "", email: "", phone: "", position: "", departmentId: "", divisionId: "", approvalRole: "STAFF", catalogGrants: [], active: true, password: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const save = async () => {
     setBusy(true);
     setErr(null);
     try {
-      const body = { username: v.username, fullName: v.fullName, email: v.email, phone: v.phone, position: v.position, departmentId: v.departmentId, divisionId: ["DEPT_MANAGER", "ADMIN"].includes(v.approvalRole) ? null : v.divisionId, approvalRole: v.approvalRole, active: v.active, password: v.password };
+      const body = { username: v.username, fullName: v.fullName, email: v.email, phone: v.phone, position: v.position, departmentId: v.departmentId, divisionId: ["DEPT_MANAGER", "ADMIN"].includes(v.approvalRole) ? null : v.divisionId, approvalRole: v.approvalRole, catalogGrants: v.approvalRole === "ADMIN" || !v.delegate ? [] : v.catalogGrants, active: v.active, password: v.password };
       await api(row ? `/api/users/${row.id}` : "/api/users", { method: row ? "PATCH" : "POST", json: body });
       toast("success", row ? "Đã lưu người dùng" : "Đã thêm người dùng");
       onSaved();
@@ -61,6 +64,23 @@ function UserEditor({ row, onClose, onSaved }: { row: Any | null; onClose: () =>
         <Field label={row ? "Đặt lại mật khẩu" : "Mật khẩu"} required={!row} hint="Tối thiểu 8 ký tự, có chữ và số. Bỏ trống nếu không đổi."><input type="password" autoComplete="new-password" className="input" value={v.password} onChange={(e) => set("password", e.target.value)} /></Field>
         <Field label="Trạng thái tài khoản"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={v.active} onChange={(e) => set("active", e.target.checked)} /> Đang hoạt động</label></Field>
       </div>
+      {v.approvalRole !== "ADMIN" && (
+        <div className="mt-4 rounded-lg border border-slate-200 p-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={!!v.delegate} onChange={(e) => set("delegate", e.target.checked)} /> Ủy quyền thêm mới nội dung trong Danh mục
+          </label>
+          {v.delegate && (
+            <div className="mt-2 grid gap-1 pl-6 sm:grid-cols-2">
+              {GRANT_OPTIONS.map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={v.catalogGrants.includes(key)} onChange={(e) => set("catalogGrants", e.target.checked ? [...v.catalogGrants, key] : v.catalogGrants.filter((x: string) => x !== key))} /> {label}
+                </label>
+              ))}
+            </div>
+          )}
+          <p className="mt-1 text-xs text-slate-500">Người được ủy quyền thấy trang Danh mục và chỉ được thêm mới các mục đã tick. Sửa, ngừng dùng, xóa vẫn do Quản trị viên.</p>
+        </div>
+      )}
       <div className="mt-3"><ErrorBox error={err} /></div>
     </Modal>
   );
@@ -180,6 +200,22 @@ function Permissions() {
         {Object.entries(ROLE_DESC).map(([k, d]) => <p key={k}><b>{ROLE_LABELS[k as keyof typeof ROLE_LABELS]}:</b> {d}</p>)}
       </div>
     </Card>
+  );
+}
+
+/** Danh mục hệ thống (chỉ Quản trị viên): phòng ban, khối, trạng thái, trường mở rộng */
+const SYSTEM_CATALOGS = ["departments", "divisions", "statuses", "customFields"];
+function SystemCatalogs() {
+  const [k, setK] = useState(SYSTEM_CATALOGS[0]);
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {SYSTEM_CATALOGS.map((c) => (
+          <button key={c} onClick={() => setK(c)} className={c === k ? "rounded-full border border-brand-500 bg-brand-50 px-3 py-1 text-sm font-semibold text-brand-700" : "rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"}>{DEFS[c].label}</button>
+        ))}
+      </div>
+      <CatalogTable key={k} entity={k} canEdit />
+    </div>
   );
 }
 
@@ -314,9 +350,10 @@ export default function AdminPage() {
   return (
     <div>
       <PageHeader title="Quản trị hệ thống" subtitle="Người dùng, phân quyền, cấu hình, sao lưu và nhật ký hoạt động" />
-      <Tabs value={tab} onChange={setTab} tabs={[{ value: "users", label: "Người dùng" }, { value: "permissions", label: "Phân quyền" }, { value: "settings", label: "Cấu hình" }, { value: "data", label: "Sao lưu & dữ liệu mẫu" }, { value: "audit", label: "Nhật ký hoạt động" }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ value: "users", label: "Người dùng" }, { value: "permissions", label: "Phân quyền" }, { value: "catalogs", label: "Danh mục hệ thống" }, { value: "settings", label: "Cấu hình" }, { value: "data", label: "Sao lưu & dữ liệu mẫu" }, { value: "audit", label: "Nhật ký hoạt động" }]} />
       {tab === "users" && <Users />}
       {tab === "permissions" && <Permissions />}
+      {tab === "catalogs" && <SystemCatalogs />}
       {tab === "settings" && <Settings />}
       {tab === "data" && <Data />}
       {tab === "audit" && <Audit />}

@@ -9,7 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect("/login");
   return (
     <AppShell
-      user={{ id: user.id, fullName: user.fullName, role: user.role, departmentName: user.departmentName, position: user.position, dataScope: user.dataScope, preferences: user.preferences }}
+      user={{ id: user.id, fullName: user.fullName, role: user.role, departmentName: user.departmentName, position: user.position, dataScope: user.dataScope, preferences: user.preferences, catalogGrants: user.catalogGrants }}
     >
       {children}
     </AppShell>
