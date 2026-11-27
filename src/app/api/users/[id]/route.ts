@@ -10,12 +10,13 @@ async function load(id: string) {
   return u;
 }
 
-/** Sửa thông tin tài khoản: phòng ban, vai trò trình ký... (quyền hệ thống sửa ở /permissions) */
+/** Sửa thông tin tài khoản: phòng ban, vai trò trình ký, quyền hệ thống... */
 export const PATCH = handler<{ id: string }>(
   async ({ req, user, params }) => {
     const existing = await load(params.id);
     const body = await parseBody(req, userSchema);
     if (existing.id === user.id && !body.active) throw badRequest("Không thể tự khóa tài khoản của chính mình");
+    if (existing.id === user.id && body.role && body.role !== "ADMIN") throw badRequest("Không thể tự hạ quyền Quản trị của chính mình");
     const { password, username: _u, approvalRole, ...data } = body;
     void _u; // tên đăng nhập không đổi được
     data.divisionId = await resolveDivision(body, existing.id);

@@ -22,16 +22,17 @@ const approvalRoleOf = (u: Any) => (u.isDeptManager ? "DEPT_MANAGER" : u.isRelat
 
 function UserEditor({ row, onClose, onSaved }: { row: Any | null; onClose: () => void; onSaved: () => void }) {
   const toast = useToast();
+  const me = useMe();
   const { data: lk } = useLookups();
   const [v, setV] = useState<Any>(() => row ? { ...row, password: "", approvalRole: approvalRoleOf(row), departmentId: row.departmentId ?? "", divisionId: row.divisionId ?? "", email: row.email ?? "", phone: row.phone ?? "", position: row.position ?? "" }
-    : { username: "", fullName: "", email: "", phone: "", position: "", departmentId: "", divisionId: "", approvalRole: "STAFF", active: true, password: "" });
+    : { username: "", fullName: "", email: "", phone: "", position: "", departmentId: "", divisionId: "", approvalRole: "STAFF", role: "STAFF", active: true, password: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const save = async () => {
     setBusy(true);
     setErr(null);
     try {
-      const body = { username: v.username, fullName: v.fullName, email: v.email, phone: v.phone, position: v.position, departmentId: v.departmentId, divisionId: v.approvalRole === "DEPT_MANAGER" ? null : v.divisionId, approvalRole: v.approvalRole, active: v.active, password: v.password };
+      const body = { username: v.username, fullName: v.fullName, email: v.email, phone: v.phone, position: v.position, departmentId: v.departmentId, divisionId: v.approvalRole === "DEPT_MANAGER" ? null : v.divisionId, approvalRole: v.approvalRole, role: v.role, active: v.active, password: v.password };
       await api(row ? `/api/users/${row.id}` : "/api/users", { method: row ? "PATCH" : "POST", json: body });
       toast("success", row ? "Đã lưu người dùng" : "Đã thêm người dùng");
       onSaved();
@@ -55,12 +56,12 @@ function UserEditor({ row, onClose, onSaved }: { row: Any | null; onClose: () =>
         {divisions.length > 0 && v.approvalRole !== "DEPT_MANAGER" && (
           <Field label="Khối" required hint="Phụ trách liên quan phụ trách khối này"><Select value={v.divisionId} onChange={(e) => set("divisionId", e.target.value)} placeholder="— Chọn khối —" options={divisions.map((d) => ({ value: d.id, label: d.name }))} /></Field>
         )}
+        <Field label="Quyền hệ thống" required hint={ROLE_DESC[v.role]}><Select value={v.role} disabled={row?.id === me.id} onChange={(e) => set("role", e.target.value)} options={Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))} /></Field>
         <Field label="Email"><input className="input" value={v.email} onChange={(e) => set("email", e.target.value)} /></Field>
         <Field label="Điện thoại"><input className="input" value={v.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
         <Field label={row ? "Đặt lại mật khẩu" : "Mật khẩu"} required={!row} hint="Tối thiểu 8 ký tự, có chữ và số. Bỏ trống nếu không đổi."><input type="password" autoComplete="new-password" className="input" value={v.password} onChange={(e) => set("password", e.target.value)} /></Field>
         <Field label="Trạng thái tài khoản"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={v.active} onChange={(e) => set("active", e.target.checked)} /> Đang hoạt động</label></Field>
       </div>
-      {!row && <p className="mt-3 text-xs text-slate-500">Quyền sử dụng hệ thống mặc định là Nhân viên, chỉnh ở tab Phân quyền.</p>}
       <div className="mt-3"><ErrorBox error={err} /></div>
     </Modal>
   );
@@ -97,7 +98,7 @@ function Users() {
       {!data ? <Spinner /> : (
         <div className="scroll-thin overflow-x-auto">
           <table className="w-full min-w-[900px]">
-            <thead><tr><th className="th">Tài khoản</th><th className="th">Họ tên</th><th className="th">Phòng ban</th><th className="th">Vai trò</th><th className="th">Email</th><th className="th">Điện thoại</th><th className="th">HS đã lập</th><th className="th">Đăng nhập gần nhất</th><th className="th">Trạng thái</th><th className="th"></th></tr></thead>
+            <thead><tr><th className="th">Tài khoản</th><th className="th">Họ tên</th><th className="th">Phòng ban</th><th className="th">Vai trò</th><th className="th">Quyền hệ thống</th><th className="th">Email</th><th className="th">Điện thoại</th><th className="th">HS đã lập</th><th className="th">Đăng nhập gần nhất</th><th className="th">Trạng thái</th><th className="th"></th></tr></thead>
             <tbody>
               {rows.map((u) => (
                 <tr key={u.id} className={u.active ? "hover:bg-slate-50" : "bg-slate-50 text-slate-400"}>
@@ -105,6 +106,7 @@ function Users() {
                   <td className="td font-medium">{u.fullName}<p className="text-xs font-normal text-slate-400">{u.position}</p></td>
                   <td className="td">{u.department?.name}{u.division && <p className="text-xs text-slate-400">{u.division.name}</p>}</td>
                   <td className="td">{u.isDeptManager ? <Badge tone="violet">Quản lý phòng ban</Badge> : u.isRelatedPerson ? <Badge tone="blue">Phụ trách liên quan</Badge> : <span className="text-sm">Nhân viên</span>}</td>
+                  <td className="td">{u.role === "ADMIN" ? <Badge tone="red">{ROLE_LABELS.ADMIN}</Badge> : <span className="text-sm">{ROLE_LABELS[u.role as keyof typeof ROLE_LABELS]}</span>}</td>
                   <td className="td text-xs">{u.email}</td>
                   <td className="td text-xs">{u.phone}</td>
                   <td className="td">{u._count.preparedDocuments}</td>

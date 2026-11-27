@@ -9,7 +9,7 @@ export const GET = handler(
   { perm: "user.manage" },
 );
 
-/** Tạo tài khoản: phòng ban + vai trò trình ký; quyền hệ thống mặc định Nhân viên (chỉnh ở tab Phân quyền), phạm vi theo bộ phận */
+/** Tạo tài khoản: phòng ban + vai trò trình ký + quyền hệ thống (mặc định Nhân viên), phạm vi theo bộ phận */
 export const POST = handler(
   async ({ req, user }) => {
     const body = await parseBody(req, userSchema);
@@ -18,7 +18,7 @@ export const POST = handler(
     if (await prisma.user.findUnique({ where: { username: data.username } })) throw badRequest("Tên đăng nhập đã tồn tại");
     data.divisionId = await resolveDivision(body);
     const created = await prisma.user.create({
-      data: { ...data, ...approvalFlags(approvalRole), role: "STAFF", dataScope: "DEPARTMENT", passwordHash: await bcrypt.hash(password, 10) },
+      data: { ...data, ...approvalFlags(approvalRole), role: data.role ?? "STAFF", dataScope: "DEPARTMENT", passwordHash: await bcrypt.hash(password, 10) },
       select: userSelect,
     });
     await audit({ userId: user.id, action: "user.create", entity: "User", entityId: created.id, detail: { ...data, approvalRole }, ip: clientIp(req) });

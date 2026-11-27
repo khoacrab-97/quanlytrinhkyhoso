@@ -19,6 +19,8 @@ export const userSchema = z.object({
   divisionId: z.string().optional().nullable().transform((v) => v || null),
   /** Vai trò trình ký: Nhân viên / Phụ trách liên quan / Quản lý phòng ban */
   approvalRole: z.enum(["STAFF", "RELATED", "DEPT_MANAGER"]).default("STAFF"),
+  /** Quyền hệ thống (Quản trị viên / Quản lý / Nhân viên / Người xem); bỏ trống khi tạo = Nhân viên */
+  role: z.enum(["ADMIN", "MANAGER", "STAFF", "VIEWER"]).optional(),
   active: z.boolean().default(true),
   password: passwordSchema.optional().or(z.literal("")).transform((v) => v || undefined),
 });
