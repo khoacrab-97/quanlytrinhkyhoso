@@ -71,11 +71,11 @@ export default function LoginPage() {
           <ul className="mt-6 space-y-2 text-sm text-slate-300">
             <li>• Theo dõi hồ sơ đang nằm ở đâu, ai đang xử lý</li>
             <li>• Ghi nhận từng lần trình, từng lần trả và nguyên nhân lỗi</li>
-            <li>• Cảnh báo quá hạn, tồn đọng tự động</li>
+            <li>• Mỗi cấp xác nhận đúng thẩm quyền, ghi thời điểm từng giai đoạn</li>
             <li>• Báo cáo, phân tích lỗi và hiệu suất xuất Excel/PDF</li>
           </ul>
         </div>
-        <p className="relative text-xs text-slate-500">Phòng Dự án · Ban Chỉ huy công trình · Phòng Kỹ thuật · Phòng Kế toán</p>
+        <p className="relative text-xs text-slate-500">Phụ trách liên quan · Quản lý phòng ban · Ban kiểm soát · Tổng Giám Đốc</p>
       </div>
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
