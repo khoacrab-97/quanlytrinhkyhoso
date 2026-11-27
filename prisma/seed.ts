@@ -42,8 +42,8 @@ const DEPARTMENTS = [
   ["PHC", "Phòng Hành chính - Nhân sự"],
   // Thành viên Ban kiểm soát (phòng ban mã BKS) xác nhận giai đoạn Ban kiểm soát và TGĐ đã ký
   ["BKS", "Ban kiểm soát"],
-  // Phòng ban riêng của tài khoản admin
-  ["QT", "Quản trị"],
+  // Phòng ban riêng của tài khoản admin (khóa, không sửa/xóa được)
+  ["ADMIN", "Admin"],
 ] as const;
 
 /** Khối của phòng ban: [mã, tên, mã phòng ban]. Hiện có Phòng Dự án; các phòng khác thêm tại Danh mục → Khối */
@@ -117,7 +117,7 @@ async function seedBase() {
     where: { username: "admin" },
     create: {
       username: "admin", passwordHash: await bcrypt.hash(adminPass, 10), fullName: "Quản trị hệ thống",
-      role: "ADMIN", dataScope: "ALL", departmentId: dept.QT, position: "Quản trị viên",
+      role: "ADMIN", dataScope: "ALL", departmentId: dept.ADMIN, position: "Quản trị viên",
     },
     update: {},
   });

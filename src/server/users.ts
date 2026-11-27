@@ -23,6 +23,17 @@ export const userSchema = z.object({
   password: passwordSchema.optional().or(z.literal("")).transform((v) => v || undefined),
 });
 
+/** Tài khoản admin luôn thuộc phòng ban Admin; phòng ban Admin chỉ dành cho tài khoản admin */
+export const ADMIN_USERNAME = "admin";
+export const ADMIN_DEPARTMENT_CODE = "ADMIN";
+
+export async function checkAdminDepartment(username: string, departmentId: string) {
+  const dept = await prisma.department.findUnique({ where: { id: departmentId }, select: { code: true } });
+  const isAdminDept = dept?.code === ADMIN_DEPARTMENT_CODE;
+  if (username === ADMIN_USERNAME && !isAdminDept) throw badRequest("Phòng ban của tài khoản admin được khóa là Admin");
+  if (username !== ADMIN_USERNAME && isAdminDept) throw badRequest("Phòng ban Admin chỉ dành cho tài khoản admin");
+}
+
 /** Vai trò trình ký -> cờ lưu trong DB (mỗi người một vai trò) */
 export function approvalFlags(r: "STAFF" | "RELATED" | "DEPT_MANAGER" | "ADMIN") {
   return { isRelatedPerson: r === "RELATED", isDeptManager: r === "DEPT_MANAGER" };

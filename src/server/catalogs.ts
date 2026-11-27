@@ -67,6 +67,15 @@ export const CATALOGS: Record<string, Cfg> = {
     include: { _count: { select: { users: true, documents: true } } },
     orderBy: { code: "asc" },
     search: ["code", "name"],
+    // Phòng ban Admin (của tài khoản admin) bị khóa
+    beforeSave: (data, existing) => {
+      if (existing?.code === "ADMIN" && (data.code !== "ADMIN" || data.name !== "Admin" || data.active === false)) {
+        throw new AppErrorLite(400, "Phòng ban Admin của tài khoản admin được khóa, không sửa được");
+      }
+    },
+    beforeDelete: (existing) => {
+      if (existing.code === "ADMIN") throw new AppErrorLite(400, "Phòng ban Admin của tài khoản admin được khóa, không xóa được");
+    },
   },
   divisions: {
     label: "Khối",

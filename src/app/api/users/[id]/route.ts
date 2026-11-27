@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { handler, parseBody, badRequest, notFound, clientIp } from "@/server/api";
 import { audit } from "@/server/audit";
-import { approvalFlags, resolveDivision, userSchema, userSelect } from "@/server/users";
+import { approvalFlags, checkAdminDepartment, resolveDivision, userSchema, userSelect } from "@/server/users";
 
 async function load(id: string) {
   const u = await prisma.user.findFirst({ where: { id, deletedAt: null } });
@@ -21,6 +21,7 @@ export const PATCH = handler<{ id: string }>(
     const role = body.approvalRole === "ADMIN" ? "ADMIN" : existing.role === "ADMIN" ? "STAFF" : existing.role;
     const { password, username: _u, approvalRole, ...data } = body;
     void _u; // tên đăng nhập không đổi được
+    await checkAdminDepartment(existing.username, data.departmentId);
     data.divisionId = await resolveDivision(body, existing.id);
     const updated = await prisma.user.update({
       where: { id: params.id },
