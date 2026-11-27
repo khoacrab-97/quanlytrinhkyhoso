@@ -21,6 +21,13 @@ export const STAGES = [
   { code: STATUS.STAGE_CEO, label: "Chờ TGĐ ký", done: "Ban kiểm soát - Đã kiểm duyệt" },
   { code: STATUS.CEO_SIGNED, label: "TGĐ đã ký", done: "Tổng Giám Đốc - Đã ký" },
 ] as const;
+/** Nút xác nhận của người có thẩm quyền ở từng giai đoạn (theo trạng thái hiện tại của hồ sơ) */
+export const STAGE_CONFIRM_LABEL: Record<string, string> = {
+  [STATUS.STAGE_CHECK]: "Xác nhận đã kiểm tra",
+  [STATUS.STAGE_MANAGER]: "Phê duyệt",
+  [STATUS.STAGE_BKS]: "Kiểm duyệt",
+  [STATUS.STAGE_CEO]: "Xác nhận TGĐ đã ký",
+};
 export type StageCode = (typeof STAGES)[number]["code"];
 export const stageIndex = (code: string | null | undefined) => STAGES.findIndex((s) => s.code === code);
 

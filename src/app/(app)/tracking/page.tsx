@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, Printer, Undo2 } from "lucide-react";
 import { qs, useApi, useLookups } from "@/lib/client";
 import { fmtDateTime } from "@/lib/dates";
-import { STAGES, STATUS } from "@/lib/constants";
+import { STAGE_CONFIRM_LABEL, STAGES, STATUS } from "@/lib/constants";
 import { ActionDialog, type ActionDoc } from "@/components/ActionDialog";
 import { useMe } from "@/components/AppShell";
 import { Badge, Button, Card, cx, ErrorBox, PageHeader, Pagination, Select, Spinner, StatusBadge, Tabs } from "@/components/ui";
@@ -14,9 +14,9 @@ type Row = {
   id: string; code: string; title: string; submissionCount: number; returnCount: number; lastSubmittedAt: string | null;
   status: { id: string; code: string; name: string; color: string; category: string };
   department: { name: string }; project: { code: string }; preparer: { fullName: string };
-  stages: Record<string, Stamp>; latestForm: { id: string; code: string; status: string } | null; canProcess: boolean;
+  stages: Record<string, Stamp>; latestForm: { id: string; code: string; status: string } | null; canProcess: boolean; canConfirm: boolean; canReturn: boolean;
 };
-type Res = { total: number; rows: Row[]; counts: Record<string, number> };
+type Res = { total: number; rows: Row[]; counts: Record<string, number>; pendingCount: number };
 
 function StampCell({ s }: { s: Stamp }) {
   if (!s) return <span className="text-slate-300">—</span>;
@@ -45,7 +45,7 @@ export default function TrackingPage() {
     <div>
       <PageHeader
         title="Theo dõi trình ký"
-        subtitle="Mỗi mốc ghi nhận thời điểm người lập bấm xác nhận. Ở Ban kiểm soát: Xác nhận = Tổng Giám Đốc đã ký; bị trả thì bấm Trình ký lại. Không tính hạn."
+        subtitle="Mỗi giai đoạn do người có thẩm quyền xác nhận: Phụ trách liên quan kiểm tra → Quản lý phòng ban phê duyệt → Ban kiểm soát kiểm duyệt hoặc trả về → Ban kiểm soát xác nhận TGĐ đã ký. Mỗi mốc ghi thời điểm bấm xác nhận."
         actions={
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={!!f.mine} onChange={(e) => set("mine", e.target.checked ? "1" : "")} /> Chỉ hồ sơ tôi lập
@@ -78,7 +78,7 @@ export default function TrackingPage() {
       </Card>
 
       <Card bodyClass="pt-2">
-        <Tabs value={view} onChange={(v) => { setView(v); setPage(1); }} tabs={[{ value: "open", label: "Đang trình" }, { value: "done", label: "TGĐ đã ký" }, { value: "all", label: "Tất cả" }]} />
+        <Tabs value={view} onChange={(v) => { setView(v); setPage(1); }} tabs={[{ value: "pending", label: "Chờ tôi xác nhận", count: data?.pendingCount }, { value: "open", label: "Đang trình" }, { value: "done", label: "TGĐ đã ký" }, { value: "all", label: "Tất cả" }]} />
         {!data ? <Spinner /> : (
           <div className="scroll-thin overflow-x-auto">
             <table className="w-full min-w-[1180px]">
@@ -92,8 +92,6 @@ export default function TrackingPage() {
               <tbody>
                 {!data.rows.length && <tr><td colSpan={STAGES.length + 5} className="td py-8 text-center text-slate-400">Không có hồ sơ</td></tr>}
                 {data.rows.map((r) => {
-                  const atBks = r.status.code === STATUS.STAGE_BKS;
-                  const inStages = STAGES.some((s) => s.code === r.status.code) && r.status.code !== STATUS.CEO_SIGNED;
                   const returned = r.status.code === STATUS.BKS_RETURNED;
                   const doc: ActionDoc = { id: r.id, code: r.code, title: r.title, status: r.status };
                   return (
@@ -111,8 +109,8 @@ export default function TrackingPage() {
                       {STAGES.map((s) => <td key={s.code} className="td text-sm"><StampCell s={r.stages[s.code]} /></td>)}
                       <td className="td"><StatusBadge status={r.status} /></td>
                       <td className="td whitespace-nowrap text-right">
-                        {r.canProcess && inStages && <Button size="sm" onClick={() => setAct({ action: "advance", doc })}>Xác nhận</Button>}
-                        {r.canProcess && atBks && r.latestForm && <Link href={`/forms/${r.latestForm.id}`} className="ml-1" title="Ban kiểm soát trả về: chọn nhóm lỗi và in ký lại"><Button size="sm" variant="danger" icon={<Undo2 className="h-3.5 w-3.5" />}>Trình ký lại</Button></Link>}
+                        {r.canConfirm && <Button size="sm" onClick={() => setAct({ action: "advance", doc })}>{STAGE_CONFIRM_LABEL[r.status.code]}</Button>}
+                        {r.canReturn && <Button size="sm" variant="danger" className="ml-1" icon={<Undo2 className="h-3.5 w-3.5" />} onClick={() => setAct({ action: "return", doc })}>Trả về</Button>}
                         {r.canProcess && returned && r.latestForm && <Link href={`/forms/${r.latestForm.id}`}><Button size="sm" variant="warning" icon={<Printer className="h-3.5 w-3.5" />}>In ký lại</Button></Link>}
                         {r.canProcess && r.status.category === "DRAFT" && (r.latestForm
                           ? <Link href={`/forms/${r.latestForm.id}`}><Button size="sm" variant="secondary" icon={<Printer className="h-3.5 w-3.5" />}>In phiếu</Button></Link>

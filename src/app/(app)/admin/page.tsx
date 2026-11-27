@@ -50,7 +50,7 @@ function UserEditor({ row, onClose, onSaved }: { row: Any | null; onClose: () =>
         <Field label="Tên đăng nhập" required><input className="input" value={v.username} onChange={(e) => set("username", e.target.value)} disabled={!!row} /></Field>
         <Field label="Họ tên" required><input className="input" value={v.fullName} onChange={(e) => set("fullName", e.target.value)} /></Field>
         <Field label="Chức danh"><input className="input" value={v.position} onChange={(e) => set("position", e.target.value)} /></Field>
-        <Field label="Phòng ban" required><Select value={v.departmentId} onChange={(e) => setV((x: Any) => ({ ...x, departmentId: e.target.value, divisionId: "" }))} placeholder="— Chọn —" options={(lk?.departments ?? []).map((d) => ({ value: d.id, label: d.name }))} /></Field>
+        <Field label="Phòng ban" required hint="Thành viên Ban kiểm soát: chọn phòng ban có mã BKS"><Select value={v.departmentId} onChange={(e) => setV((x: Any) => ({ ...x, departmentId: e.target.value, divisionId: "" }))} placeholder="— Chọn —" options={(lk?.departments ?? []).map((d) => ({ value: d.id, label: d.name }))} /></Field>
         <Field label="Vai trò" required hint="Phụ trách liên quan / Quản lý phòng ban dùng cho bước duyệt hồ sơ"><Select value={v.approvalRole} onChange={(e) => set("approvalRole", e.target.value)} options={APPROVAL_ROLES} /></Field>
         {divisions.length > 0 && v.approvalRole !== "DEPT_MANAGER" && (
           <Field label="Khối" required hint="Phụ trách liên quan phụ trách khối này"><Select value={v.divisionId} onChange={(e) => set("divisionId", e.target.value)} placeholder="— Chọn khối —" options={divisions.map((d) => ({ value: d.id, label: d.name }))} /></Field>

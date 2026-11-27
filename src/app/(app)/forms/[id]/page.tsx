@@ -3,10 +3,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { ArrowLeft, Lock, Pencil, Printer, RotateCcw, Trash2 } from "lucide-react";
-import { api, useApi, useLookups } from "@/lib/client";
+import { api, useApi } from "@/lib/client";
 import { fmtDateTime } from "@/lib/dates";
 import { SigningSheet, type SheetContent } from "@/components/SigningSheet";
-import { Badge, Button, Card, cx, ErrorBox, Field, Modal, Select, Spinner, StatusBadge, useConfirm, useToast } from "@/components/ui";
+import { Badge, Button, Card, cx, ErrorBox, Field, Modal, Spinner, StatusBadge, useConfirm, useToast } from "@/components/ui";
 
 type Data = {
   form: {
@@ -39,8 +39,6 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
   const [askPrinted, setAskPrinted] = useState(false);
   const [resubmitOpen, setResubmitOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const { data: lk } = useLookups();
   const [busy, setBusy] = useState(false);
   const left = useCountdown(data?.state.reprintUntil ?? null);
 
@@ -80,11 +78,10 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
   const resubmit = async () => {
     setBusy(true);
     try {
-      const r = await api<{ id: string; code: string }>(`/api/signing-forms/${id}/resubmit`, { method: "POST", json: { reason, categoryId: categoryId || null } });
+      const r = await api<{ id: string; code: string }>(`/api/signing-forms/${id}/resubmit`, { method: "POST", json: { reason } });
       toast("success", `Đã tạo phiếu trình ký lại ${r.code}. Kiểm tra nội dung rồi in.`);
       setResubmitOpen(false);
       setReason("");
-      setCategoryId("");
       router.push(`/forms/${r.id}`);
     } catch (e) {
       toast("error", (e as Error).message);
@@ -202,21 +199,13 @@ export default function FormDetailPage({ params }: { params: Promise<{ id: strin
         open={resubmitOpen}
         onClose={() => setResubmitOpen(false)}
         title="Trình ký lại"
-        footer={<><Button variant="secondary" onClick={() => setResubmitOpen(false)}>Hủy</Button><Button variant="warning" loading={busy} disabled={reason.trim().length < 5 || (state.atBks && !categoryId)} onClick={resubmit}>Tạo phiếu trình lại</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setResubmitOpen(false)}>Hủy</Button><Button variant="warning" loading={busy} disabled={reason.trim().length < 5} onClick={resubmit}>Tạo phiếu trình lại</Button></>}
       >
         <div className="space-y-3">
           <Field label="Trình ký lại - lần" hint="Hệ thống tự tính theo số lần hồ sơ đã trình">
             <div className="input bg-slate-50 font-semibold">Lần {state.nextResubmitNo}</div>
           </Field>
-          {state.atBks && (
-            <>
-              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">Hồ sơ đang ở giai đoạn Ban kiểm soát: Trình ký lại được ghi nhận là <b>Ban kiểm soát trả về</b> (tính 1 lần lỗi).</p>
-              <Field label="Nhóm lỗi" required>
-                <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} placeholder="— Chọn nhóm lỗi —" options={(lk?.errorCategories ?? []).map((c) => ({ value: c.id, label: c.name }))} />
-              </Field>
-            </>
-          )}
-          <Field label={state.atBks ? "Nội dung lỗi / lý do trình ký lại" : "Lý do trình ký lại"} required hint="Tối thiểu 5 ký tự. Nội dung được in lên phiếu và lưu để thống kê.">
+          <Field label="Lý do trình ký lại" required hint="Tối thiểu 5 ký tự. Nội dung được in lên phiếu và lưu để thống kê.">
             <textarea className="input" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
           </Field>
           <p className="text-xs text-slate-500">Hệ thống tạo phiếu mới sao chép nội dung phiếu hiện tại (ngày trình = hôm nay). Bạn có thể sửa trước khi in.</p>

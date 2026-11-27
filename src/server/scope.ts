@@ -7,7 +7,7 @@ import type { CurrentUser } from "./session";
  */
 export function documentScopeWhere(user: CurrentUser): Prisma.DocumentWhereInput {
   const base: Prisma.DocumentWhereInput = { deletedAt: null };
-  if (user.role === "ADMIN" || user.dataScope === "ALL") return base;
+  if (user.role === "ADMIN" || user.dataScope === "ALL" || user.isBks) return base;
 
   const own: Prisma.DocumentWhereInput[] = [
     { preparerId: user.id },

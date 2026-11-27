@@ -125,10 +125,11 @@ async function check(name: string, fn: () => Promise<void>) {
     await act({ action: "return", errors: [{ categoryId: cat.id, reasonId: cat.reasons[0].id }] }, 409); // Phụ trách liên quan không được trả
     await act({ action: "advance", stage: "STAGE_MANAGER" });
     await act({ action: "advance", stage: "STAGE_BKS" });
-    // Ở BKS: Trình ký lại bắt buộc chọn nhóm lỗi, được ghi nhận là BKS trả về
-    const noCat = await admin(`/api/signing-forms/${form.id}/resubmit`, { method: "POST", body: JSON.stringify({ reason: "Sửa theo ý kiến BKS" }) });
-    assert.equal(noCat.status, 400);
-    const re = await (await admin(`/api/signing-forms/${form.id}/resubmit`, { method: "POST", body: JSON.stringify({ reason: "Sửa theo ý kiến BKS", categoryId: cat.id }) })).json();
+    // Ở BKS: người lập chưa trình ký lại được; Ban kiểm soát bấm Trả về (nhóm lỗi), sau đó mới trình ký lại
+    const early = await admin(`/api/signing-forms/${form.id}/resubmit`, { method: "POST", body: JSON.stringify({ reason: "Sửa theo ý kiến BKS" }) });
+    assert.equal(early.status, 409);
+    await act({ action: "return", requirement: "Sai số liệu", errors: [{ categoryId: cat.id, customReason: "Sai số liệu" }] });
+    const re = await (await admin(`/api/signing-forms/${form.id}/resubmit`, { method: "POST", body: JSON.stringify({ reason: "Sửa theo ý kiến BKS" }) })).json();
     assert.ok(re.id, JSON.stringify(re));
     assert.equal((await admin(`/api/signing-forms/${re.id}/print`, { method: "POST" })).status, 200);
     let d = (await (await admin(`/api/documents/${docId}`)).json()).doc;

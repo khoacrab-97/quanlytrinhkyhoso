@@ -2,9 +2,19 @@
 
 Web app quản lý, theo dõi và kiểm soát hồ sơ trình ký trong doanh nghiệp xây dựng, dành cho Phòng Dự án, Ban Chỉ huy công trình, Phòng Kỹ thuật, Phòng Kế toán và các bộ phận liên quan.
 
-Mục đích chính: **quản lý hồ sơ trình ký theo từng lần in phiếu trình ký (mẫu công ty) và số lần bị lỗi**. Đây không phải hệ thống ký điện tử: việc ký vẫn làm trên giấy, người lập ghi nhận lên hệ thống từng mốc.
+Mục đích chính: **quản lý hồ sơ trình ký theo từng lần in phiếu trình ký (mẫu công ty) và số lần bị lỗi**. Đây không phải hệ thống ký điện tử: việc ký vẫn làm trên giấy, **người có thẩm quyền** ghi nhận lên hệ thống mốc của mình.
 
-Vòng đời hồ sơ: **soạn phiếu → in phiếu (nộp) → Trình Phụ trách liên quan → Quản lý phòng ban ký duyệt → Ban kiểm soát → Chờ TGĐ ký → TGĐ đã ký**. Mỗi mốc được người lập xác nhận và hiển thị: *Phụ trách liên quan - Đã kiểm tra*, *Quản lý phòng ban - Đã phê duyệt*, *Tổng Giám Đốc - Đã ký*. Ở Ban kiểm soát: không bị trả thì bấm Xác nhận là *Ban kiểm soát - Đã kiểm duyệt* (hồ sơ chuyển sang Chờ TGĐ ký); khi TGĐ ký xong mới bấm xác nhận *Tổng Giám Đốc - Đã ký*; bị trả thì bấm **Trình ký lại**, chọn **nhóm lỗi (bắt buộc)** và nhập nội dung, hồ sơ được in ký lại và quay về giai đoạn đầu. Trang chi tiết hồ sơ (thẻ giai đoạn và timeline) hiển thị chức danh kèm trạng thái màu: In phiếu & nộp trình ký • Đã trình (xanh dương); Phụ trách liên quan • Đang chờ kiểm tra (vàng) / Đã kiểm tra (xanh lá); Quản lý phòng ban • Đang chờ phê duyệt / Đã phê duyệt; Ban kiểm soát • Đang chờ kiểm duyệt / Đã kiểm duyệt, hoặc Trả về - chờ in ký lại (đỏ); Tổng Giám Đốc • Đang chờ ký (vàng) / Đã ký (xanh lá). Lịch sử được lưu đầy đủ. Dashboard và báo cáo tính trực tiếp từ dữ liệu thực tế. Không có hạn xử lý và không cảnh báo quá hạn.
+Vòng đời hồ sơ: **soạn phiếu → in phiếu (nộp) → Trình Phụ trách liên quan → Quản lý phòng ban ký duyệt → Ban kiểm soát → Chờ TGĐ ký → TGĐ đã ký**. **Mỗi giai đoạn do người có thẩm quyền xác nhận** (người lập không tự xác nhận):
+
+| Giai đoạn | Người xác nhận | Nút |
+|---|---|---|
+| Trình Phụ trách liên quan | **Phụ trách liên quan** cùng phòng ban, cùng khối với người lập | *Xác nhận đã kiểm tra* |
+| Quản lý phòng ban ký duyệt | **Quản lý phòng ban** của phòng ban trình ký | *Phê duyệt* |
+| Ban kiểm soát | Thành viên **Ban kiểm soát** (người dùng thuộc phòng ban mã `BKS`) | *Kiểm duyệt*, hoặc *Trả về* (chọn nhóm lỗi + nội dung) |
+| Chờ TGĐ ký | Thành viên **Ban kiểm soát** | *Xác nhận TGĐ đã ký* |
+
+Mỗi người chỉ xác nhận đúng giai đoạn kế tiếp, không xác nhận vượt. Quản trị viên được xác nhận thay khi cần. Hồ sơ chờ mình xác nhận nằm ở tab **Chờ tôi xác nhận** (trang Theo dõi trình ký). Ban kiểm soát trả về thì người lập bấm **Trình ký lại** (ghi lý do) để in ký lại, hồ sơ quay về giai đoạn đầu.
+ Trang chi tiết hồ sơ (thẻ giai đoạn và timeline) hiển thị chức danh kèm trạng thái màu: In phiếu & nộp trình ký • Đã trình (xanh dương); Phụ trách liên quan • Đang chờ kiểm tra (vàng) / Đã kiểm tra (xanh lá); Quản lý phòng ban • Đang chờ phê duyệt / Đã phê duyệt; Ban kiểm soát • Đang chờ kiểm duyệt / Đã kiểm duyệt, hoặc Trả về - chờ in ký lại (đỏ); Tổng Giám Đốc • Đang chờ ký (vàng) / Đã ký (xanh lá). Lịch sử được lưu đầy đủ. Dashboard và báo cáo tính trực tiếp từ dữ liệu thực tế. Không có hạn xử lý và không cảnh báo quá hạn.
 
 ---
 
@@ -16,8 +26,8 @@ Vòng đời hồ sơ: **soạn phiếu → in phiếu (nộp) → Trình Phụ 
 | **01 · Tổng quan** | 8 KPI (tổng hồ sơ, số lần in nộp, đang trình, TGĐ đã ký, BKS trả - chờ in ký lại, đang soạn phiếu, tỷ lệ bị BKS trả, thời gian nộp → TGĐ ký), biểu đồ theo tháng/trạng thái/loại/công trình/nhóm lỗi, **bảng theo phòng ban trình ký** và danh sách hồ sơ chờ in ký lại. Lọc theo thời gian, công trình, phòng ban, người phụ trách, loại, trạng thái và dữ liệu mẫu/chính thức. Bấm vào KPI để mở danh sách hồ sơ tương ứng. |
 | **02 · Quản lý hồ sơ** | Thêm, sửa, xem, sao chép và xóa (xóa mềm, cần ghi lý do). Tìm theo mã, số hiệu, tên. Lọc theo hơn 12 tiêu chí, sắp xếp và phân trang phía server. Bảng cho phép **kéo độ rộng cột, ẩn/hiện cột, ghim cột** và tự lưu cấu hình hiển thị cho từng người dùng vào CSDL. Import Excel (có bước kiểm tra trước), xuất Excel/PDF theo bộ lọc. Đính kèm file. Hỗ trợ **trường dữ liệu mở rộng** do quản trị cấu hình. |
 | **03 · Giai đoạn / trạng thái** | 8 trạng thái hệ thống: Đang soạn phiếu, **Trình Phụ trách liên quan, Quản lý phòng ban ký duyệt, Ban kiểm soát, Chờ TGĐ ký, TGĐ đã ký**, BKS trả về - chờ in ký lại, Đã hủy. Mỗi lần đổi trạng thái được ghi lịch sử gồm thời điểm, người thực hiện, nội dung và thời gian ở trạng thái trước. |
-| **04 · BKS trả về & lỗi** | **Chỉ tính lỗi khi Ban kiểm soát trả về**, ghi nhận lúc người lập bấm Trình ký lại ở giai đoạn BKS (nhóm lỗi bắt buộc + nội dung tự nhập). Trình ký lại ở giai đoạn khác (ví dụ quá 60 phút) chỉ cần lý do, không tính lỗi. Mỗi lần trả là một bản ghi riêng, kèm người chịu trách nhiệm và file minh chứng. Lần trả tự đóng khi hồ sơ được in ký lại. Có 6 nhóm lỗi với 25 nguyên nhân mặc định, và cho phép tự nhập. Trang phân tích có top 10 lỗi, thống kê theo nhóm/người lập/người chịu trách nhiệm/phòng ban/công trình/kỳ, và phát hiện **lỗi tái diễn**. |
-| **05 · Theo dõi trình ký** | Bảng hồ sơ với **mốc thời gian của từng giai đoạn** trong lần nộp hiện tại. Người lập bấm **Xác nhận** để chọn mốc đã đạt (*Phụ trách liên quan - Đã kiểm tra*, *Quản lý phòng ban - Đã phê duyệt*, *Tổng Giám Đốc - Đã ký*); thời điểm ghi nhận là giờ máy chủ lúc bấm (không chọn lùi được). Xác nhận vượt nhiều giai đoạn thì các giai đoạn bỏ qua được ghi cùng thời điểm. Ở giai đoạn Ban kiểm soát có thêm nút **Trình ký lại** (khi bị trả). Lọc theo phòng ban, dự án, giai đoạn, "hồ sơ tôi lập". Không tính hạn, không cảnh báo quá hạn. |
+| **04 · BKS trả về & lỗi** | **Chỉ tính lỗi khi Ban kiểm soát trả về**, do Ban kiểm soát ghi nhận khi bấm **Trả về** (nhóm lỗi bắt buộc + nội dung tự nhập). Trình ký lại ở giai đoạn khác (ví dụ quá 60 phút) chỉ cần lý do, không tính lỗi. Mỗi lần trả là một bản ghi riêng, kèm người chịu trách nhiệm và file minh chứng. Lần trả tự đóng khi hồ sơ được in ký lại. Có 6 nhóm lỗi với 25 nguyên nhân mặc định, và cho phép tự nhập. Trang phân tích có top 10 lỗi, thống kê theo nhóm/người lập/người chịu trách nhiệm/phòng ban/công trình/kỳ, và phát hiện **lỗi tái diễn**. |
+| **05 · Theo dõi trình ký** | Bảng hồ sơ với **mốc thời gian của từng giai đoạn** trong lần nộp hiện tại. Tab **Chờ tôi xác nhận** liệt kê hồ sơ đang chờ đúng người đăng nhập; nút trên mỗi dòng đổi theo giai đoạn (*Xác nhận đã kiểm tra / Phê duyệt / Kiểm duyệt / Trả về / Xác nhận TGĐ đã ký*). Thời điểm ghi nhận là giờ máy chủ lúc bấm (không chọn lùi được). Lọc theo phòng ban, dự án, giai đoạn, "hồ sơ tôi lập". Không tính hạn, không cảnh báo quá hạn. |
 | **06 · Danh mục** | Công trình/dự án (kèm **Chủ đầu tư và danh sách NCC/thầu phụ của dự án**), loại hồ sơ, bộ phận, **khối** (thuộc phòng ban), CĐT/NCC/thầu phụ, nhóm lỗi, nguyên nhân trả, trạng thái, trường mở rộng. Mỗi mục có thể thêm, sửa, vô hiệu hóa. Chỉ xóa được khi chưa phát sinh dữ liệu. |
 | **07 · Báo cáo** | (1) Tổng hợp theo ngày/tháng/quý/năm, theo công trình và **theo phòng ban trình ký**. (2) **Thời gian theo giai đoạn** (thời gian thực tế ở mỗi giai đoạn, nộp → TGĐ ký theo loại và phòng ban). (3) Phân tích lỗi. (4) Hiệu suất nhân sự. Mọi báo cáo đều lọc được và **xuất được Excel và PDF** (font hỗ trợ tiếng Việt), có ghi công thức tính. |
 | **Quản trị** | Tab **Người dùng**: thêm, sửa, khóa và **xóa người dùng khỏi hệ thống** (xóa mềm: không đăng nhập được, ẩn khỏi mọi danh sách, lịch sử hồ sơ giữ nguyên tên). Khi tạo tài khoản bắt buộc chọn **phòng ban** và **vai trò**: Nhân viên / Phụ trách liên quan / Quản lý phòng ban. Nếu phòng ban có **khối** (vd Phòng Dự án: Khối Phát triển dự án, Khối Thi công dự án) thì Nhân viên và Phụ trách liên quan phải chọn khối; một khối có thể có nhiều Phụ trách liên quan. Quản lý phòng ban đứng trên các khối, không thuộc khối, **mỗi phòng ban chỉ 1 người** (chuẩn bị cho luồng Quản lý duyệt, hiện chỉ lưu, chưa đổi nghiệp vụ). Tab **Phân quyền**: chỉnh quyền sử dụng hệ thống, danh sách xếp theo phòng ban → khối; phòng ban, khối, Phụ trách liên quan, Quản lý phòng ban chỉ hiển thị theo thiết lập ở tab Người dùng. Cấu hình thời hạn in lại phiếu và tiền tố mã. Sao lưu, xóa dữ liệu mẫu, nhật ký hoạt động. |
@@ -36,7 +46,7 @@ Vòng đời hồ sơ: **soạn phiếu → in phiếu (nộp) → Trình Phụ 
 ### Giả định nghiệp vụ đã áp dụng (có thể điều chỉnh)
 
 - **Không có hạn xử lý, không cảnh báo quá hạn.** Hệ thống chỉ ghi nhận hồ sơ đã nộp từ lúc nào và tới giai đoạn nào lúc nào.
-- **Mốc giai đoạn** do người lập (hoặc quản lý/admin) bấm xác nhận; thời điểm luôn lấy giờ máy chủ.
+- **Mốc giai đoạn** do người có thẩm quyền bấm xác nhận (Phụ trách liên quan, Quản lý phòng ban, Ban kiểm soát; Quản trị viên xác nhận thay khi cần); thời điểm luôn lấy giờ máy chủ.
 - **Thời gian xử lý** tính từ lần in nộp đầu tiên đến lúc xác nhận *TGĐ đã ký*.
 - Chỉ **Ban kiểm soát** được trả hồ sơ, và việc trả được ghi nhận qua Trình ký lại (nhóm lỗi bắt buộc). Khi in ký lại, các lần trả chưa đóng sẽ tự đóng và các lỗi được coi là đã khắc phục. Hồ sơ đã bị BKS trả thì không được in lại phiếu cũ, phải *Trình ký lại*.
 - Nhóm lỗi có cờ **"Tính trách nhiệm cá nhân"**. Lỗi khách quan (ví dụ CĐT thay đổi yêu cầu) không bị tính vào hiệu suất cá nhân. Lỗi được gán cho *người chịu trách nhiệm*, không mặc nhiên quy cho người lập.
@@ -129,7 +139,7 @@ Các lệnh khác:
 
 | Lệnh | Tác dụng |
 |---|---|
-| `npm test` | Kiểm thử luồng 4 giai đoạn và quy tắc phiếu trình ký (21 test) |
+| `npm test` | Kiểm thử luồng giai đoạn, thẩm quyền xác nhận và quy tắc phiếu trình ký (27 test) |
 | `npm run test:api` | Kiểm thử API qua HTTP (30 kiểm tra: phân quyền, khối/vai trò, luồng 4 giai đoạn, theo dõi, xuất Excel/PDF). Cần server đang chạy |
 | `npm run db:reset` | Xóa hồ sơ mẫu rồi tạo lại bộ mẫu mới |
 | `npm run db:purge-sample` | Xóa toàn bộ hồ sơ mẫu, giữ nguyên dữ liệu chính thức |

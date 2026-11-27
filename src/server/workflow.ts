@@ -10,6 +10,7 @@ import type { ActivityType, DocumentStatus, Prisma, StatusCategory } from "@pris
 import { prisma } from "@/lib/prisma";
 import { STAGES, STATUS, stageIndex } from "@/lib/constants";
 import { audit, notify } from "./audit";
+import { canConfirm, canReturn, loadApprover, WAITING_FOR } from "./approval";
 import { AppErrorLite } from "./errors";
 
 export type Actor = { id: string; role: string; departmentId: string | null; fullName?: string };
@@ -181,6 +182,21 @@ export async function performAction(documentId: string, input: ActionInput, acto
       }
       if (input.action === "change_status" && !["ADMIN", "MANAGER"].includes(actor.role)) {
         throw new AppErrorLite(403, "Chỉ Quản trị viên / Quản lý được đổi trạng thái ngoài luồng chuẩn");
+      }
+
+      // Thẩm quyền: Phụ trách liên quan / Quản lý phòng ban / Ban kiểm soát xác nhận giai đoạn của mình
+      if (input.action === "advance" || input.action === "return") {
+        const approver = await loadApprover(tx, actor.id);
+        const prep = await tx.user.findUnique({ where: { id: doc.preparerId }, select: { divisionId: true } });
+        const ad = { statusCode: doc.status.code, departmentId: doc.departmentId, preparerDivisionId: prep?.divisionId ?? null };
+        if (input.action === "advance" && !canConfirm(approver, ad)) {
+          throw new AppErrorLite(403, `Chỉ ${WAITING_FOR[doc.status.code] ?? "người có thẩm quyền"} được xác nhận giai đoạn này`);
+        }
+        if (input.action === "return" && !canReturn(approver, ad)) throw new AppErrorLite(403, "Chỉ Ban kiểm soát được trả hồ sơ");
+        // Mỗi người xác nhận đúng giai đoạn của mình; chỉ Quản trị viên được xác nhận vượt giai đoạn (vd nhập dữ liệu cũ)
+        if (input.action === "advance" && approver.role !== "ADMIN" && stageIndex(input.stage) !== stageIndex(doc.status.code) + 1) {
+          throw new AppErrorLite(400, "Chỉ xác nhận giai đoạn kế tiếp của hồ sơ");
+        }
       }
 
       const at = resolveAt(input.at, doc.preparedDate);

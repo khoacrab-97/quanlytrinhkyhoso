@@ -6,6 +6,7 @@ import { documentInputSchema, softDeleteDocument, updateDocument } from "@/serve
 import { canModifyDocument, documentScopeWhere } from "@/server/scope";
 import { allowedActions } from "@/server/workflow";
 import { loadModifiable } from "@/server/guards";
+import { canConfirm, canReturn, loadApprover, WAITING_FOR } from "@/server/approval";
 
 type P = { id: string };
 const userSel = { select: { id: true, fullName: true } };
@@ -51,6 +52,9 @@ export const GET = handler<P>(async ({ user, params }) => {
   });
   if (!doc) throw notFound("Hồ sơ");
   const modify = canModifyDocument(user, doc);
+  const prep = await prisma.user.findUnique({ where: { id: doc.preparerId }, select: { divisionId: true } });
+  const approver = await loadApprover(prisma, user.id);
+  const ad = { statusCode: doc.status.code, departmentId: doc.departmentId, preparerDivisionId: prep?.divisionId ?? null };
   return {
     doc,
     perms: {
@@ -60,9 +64,15 @@ export const GET = handler<P>(async ({ user, params }) => {
       forceStatus: can(user.role, "document.forceStatus"),
       copy: can(user.role, "document.create"),
     },
+    // Xác nhận giai đoạn / trả về theo thẩm quyền (xem approval), không theo quyền xử lý hồ sơ
     actions: modify && can(user.role, "document.process")
-      ? allowedActions(doc.status).filter((a) => a !== "change_status" || can(user.role, "document.forceStatus"))
+      ? allowedActions(doc.status).filter((a) => a !== "advance" && a !== "return" && (a !== "change_status" || can(user.role, "document.forceStatus")))
       : [],
+    approval: {
+      waitingFor: WAITING_FOR[doc.status.code] ?? null,
+      canConfirm: can(user.role, "document.process") && canConfirm(approver, ad),
+      canReturn: can(user.role, "document.process") && canReturn(approver, ad),
+    },
   };
 });
 

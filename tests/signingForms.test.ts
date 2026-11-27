@@ -16,7 +16,7 @@ const content = {
 
 before(async () => {
   const u = await prisma.user.findUniqueOrThrow({ where: { username: "admin" } });
-  me = { id: u.id, username: u.username, fullName: u.fullName, role: "ADMIN", dataScope: "ALL", departmentId: u.departmentId, departmentName: null, position: null, projectIds: [], preferences: {} };
+  me = { id: u.id, username: u.username, fullName: u.fullName, role: "ADMIN", dataScope: "ALL", departmentId: u.departmentId, departmentName: null, position: null, projectIds: [], preferences: {}, isBks: false };
   const [t, p, d] = await Promise.all([prisma.documentType.findFirstOrThrow(), prisma.project.findFirstOrThrow(), prisma.department.findFirstOrThrow()]);
   const f = await createForm({ documentId: null, newDocument: { typeId: t.id, projectId: p.id, departmentId: d.id, contractorId: null, recipientId: null, docNumber: null }, content, reason: null }, me);
   formId = f.id;
@@ -86,15 +86,16 @@ describe("Phiếu trình ký", () => {
     assert.equal(d.submissions[1].result, "PENDING");
   });
 
-  test("ở Ban kiểm soát: Trình ký lại = BKS trả về, bắt buộc chọn nhóm lỗi", async () => {
+  test("ở Ban kiểm soát: người lập chưa trình ký lại được; BKS bấm Trả về (nhóm lỗi) rồi mới trình ký lại", async () => {
     const forms = await prisma.signingForm.findMany({ where: { documentId: docId }, orderBy: { resubmitNo: "desc" } });
     const latest = forms[0];
     await prisma.signingForm.update({ where: { id: latest.id }, data: { printedAt: new Date() } }); // còn trong 60 phút
     await performAction(docId, { action: "advance", stage: "STAGE_BKS" }, me);
     assert.equal((await formState(me, await load(latest.id))).atBks, true);
-    await assert.rejects(() => resubmitForm(me, latest.id, { reason: "Sai số liệu bảng tổng hợp" }), /nhóm lỗi/);
+    await assert.rejects(() => resubmitForm(me, latest.id, { reason: "Sai số liệu bảng tổng hợp" }), /chờ Ban kiểm soát/);
     const cat = await prisma.errorCategory.findFirstOrThrow({ where: { code: "ND" } });
-    const f = await resubmitForm(me, latest.id, { reason: "Sai số liệu bảng tổng hợp", categoryId: cat.id });
+    await performAction(docId, { action: "return", requirement: "Sai số liệu bảng tổng hợp", errors: [{ categoryId: cat.id, customReason: "Sai số liệu bảng tổng hợp" }] }, me);
+    const f = await resubmitForm(me, latest.id, { reason: "Sai số liệu bảng tổng hợp" });
     assert.equal(f.resubmitNo, 2);
     assert.equal(f.resubmitReason, "Sai số liệu bảng tổng hợp");
     const d = await prisma.document.findUniqueOrThrow({ where: { id: docId }, include: { status: true, returns: { include: { errors: true } } } });

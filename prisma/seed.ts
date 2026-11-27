@@ -40,6 +40,8 @@ const DEPARTMENTS = [
   ["PKTOAN", "Phòng Kế toán"],
   ["PVT", "Phòng Vật tư - Thiết bị"],
   ["PHC", "Phòng Hành chính - Nhân sự"],
+  // Thành viên Ban kiểm soát (phòng ban mã BKS) xác nhận giai đoạn Ban kiểm soát và TGĐ đã ký
+  ["BKS", "Ban kiểm soát"],
 ] as const;
 
 /** Khối của phòng ban: [mã, tên, mã phòng ban]. Hiện có Phòng Dự án; các phòng khác thêm tại Danh mục → Khối */
@@ -216,6 +218,8 @@ async function seedSample() {
   const staff = users.filter((u) => u.role === "STAFF");
   const now = Date.now();
   const toActor = (u: (typeof users)[number]) => ({ id: u.id, role: u.role, departmentId: u.departmentId });
+  const adminUser = await prisma.user.findUniqueOrThrow({ where: { username: "admin" } });
+  const sampleAdmin = { id: adminUser.id, role: adminUser.role, departmentId: adminUser.departmentId };
 
   const TITLES: Record<string, string[]> = {
     NTCV: ["Nghiệm thu cốt thép móng M{n}", "Nghiệm thu bê tông sàn tầng {n}", "Nghiệm thu cốp pha cột tầng {n}", "Nghiệm thu xây tường bao tầng {n}", "Nghiệm thu chống thấm sàn mái"],
@@ -289,7 +293,9 @@ async function seedSample() {
     let t = prepared.getTime() + between(0.5, 4) * DAY;
     if (t > now || rnd() < 0.04) continue; // còn đang soạn phiếu
     const act = async (input: Parameters<typeof performAction>[1]) => {
-      await performAction(doc.id, { ...input, at: new Date(t) } as never, toActor(preparer));
+      // Dữ liệu mẫu: người lập in nộp; các giai đoạn do Quản trị viên xác nhận thay người có thẩm quyền
+      const by = input.action === "advance" || input.action === "return" ? sampleAdmin : toActor(preparer);
+      await performAction(doc.id, { ...input, at: new Date(t) } as never, by);
     };
     const partnerName = contractor?.name ?? project.investor ?? "";
     await act({ action: "submit", note: "In phiếu trình ký lần đầu" });

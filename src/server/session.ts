@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/lib/token";
+import { BKS_DEPARTMENT_CODE } from "./approval";
 
 export type CurrentUser = {
   id: string;
@@ -14,6 +15,8 @@ export type CurrentUser = {
   departmentName: string | null;
   position: string | null;
   projectIds: string[];
+  /** Thành viên Ban kiểm soát (phòng ban mã BKS): xem và xác nhận hồ sơ của mọi phòng ban */
+  isBks: boolean;
   preferences: Record<string, unknown>;
 };
 
@@ -37,6 +40,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     departmentName: u.department?.name ?? null,
     position: u.position,
     projectIds: u.projects.map((p) => p.projectId),
+    isBks: u.department?.code === BKS_DEPARTMENT_CODE,
     preferences: (u.preferences as Record<string, unknown>) ?? {},
   };
 });

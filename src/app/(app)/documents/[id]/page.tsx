@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { api, useApi } from "@/lib/client";
 import { daysBetween, fmtDate, fmtDateTime, round1 } from "@/lib/dates";
-import { ACTIVITY_LABELS, FIX_STATUS_LABELS, PRIORITY_LABELS, STATUS, stageIndex } from "@/lib/constants";
+import { ACTIVITY_LABELS, FIX_STATUS_LABELS, PRIORITY_LABELS, STAGE_CONFIRM_LABEL, STATUS, stageIndex } from "@/lib/constants";
 import { ActionDialog, ACTION_META } from "@/components/ActionDialog";
 import { Badge, Button, Card, cx, Empty, ErrorBox, Field, Modal, Spinner, StatusBadge, Tabs, useConfirm, useToast } from "@/components/ui";
 
@@ -174,7 +174,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   const router = useRouter();
   const toast = useToast();
   const { confirm, dialog } = useConfirm();
-  const { data, error, mutate } = useApi<{ doc: Any; perms: Record<string, boolean>; actions: string[] }>(`/api/documents/${id}`);
+  const { data, error, mutate } = useApi<{ doc: Any; perms: Record<string, boolean>; actions: string[]; approval: { waitingFor: string | null; canConfirm: boolean; canReturn: boolean } }>(`/api/documents/${id}`);
   const { data: lkUsers } = useApi<Any>("/api/lookups");
   const [tab, setTab] = useState("timeline");
   const [action, setAction] = useState<string | null>(null);
@@ -182,7 +182,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Spinner />;
-  const { doc, perms, actions } = data;
+  const { doc, perms, actions, approval } = data;
   // Mốc từng giai đoạn của lần nộp hiện tại (ghi nhận lúc người lập bấm xác nhận)
   const stamps: Record<string, Any> = {};
   if (doc.lastSubmittedAt) {
@@ -269,11 +269,12 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
             {perms.delete && <Button variant="secondary" className="text-red-600" icon={<Trash2 className="h-4 w-4" />} onClick={del}>Xóa</Button>}
           </div>
         </div>
-        {doc.status.code === STATUS.STAGE_BKS && perms.process && doc.signingForms?.[0] && (
-          <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Ở Ban kiểm soát: bấm <b>Xác nhận giai đoạn</b> nếu Ban kiểm soát đã kiểm duyệt (chuyển sang chờ Tổng Giám Đốc ký); nếu Ban kiểm soát trả về thì mở phiếu và bấm <b>Trình ký lại</b> (chọn nhóm lỗi).
-            <Link className="ml-2 font-semibold underline" href={`/forms/${doc.signingForms[0].id}`}>Mở phiếu {doc.signingForms[0].code}</Link>
-          </p>
+        {approval.waitingFor && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <span>Đang chờ <b>{approval.waitingFor}</b> xác nhận.</span>
+            {approval.canConfirm && <Button onClick={() => setAction("advance")}>{STAGE_CONFIRM_LABEL[doc.status.code]}</Button>}
+            {approval.canReturn && <Button variant="danger" onClick={() => setAction("return")}>Trả về</Button>}
+          </div>
         )}
         {doc.status.code === STATUS.BKS_RETURNED && perms.process && (
           <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">

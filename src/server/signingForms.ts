@@ -152,11 +152,12 @@ export async function formState(user: CurrentUser, form: Awaited<ReturnType<type
     canPrint: handle && form.status === "DRAFT" && !closed,
     // Ban kiểm soát đã trả về thì không in lại bản cũ: bắt buộc In ký lại (phiếu mới, có lý do)
     canReprint: handle && form.status === "PRINTED" && latest?.id === form.id && !returned && !closed && !!reprintUntil && reprintUntil > new Date(),
-    canResubmit: handle && form.status === "PRINTED" && latest?.id === form.id && !closed,
+    // Đang ở Ban kiểm soát: chờ BKS kiểm duyệt hoặc trả về, người lập chưa được trình ký lại
+    canResubmit: handle && form.status === "PRINTED" && latest?.id === form.id && !closed && !atBks,
     nextResubmitNo: form.document.submissionCount,
     isLatest: latest?.id === form.id,
     bksReturned: returned,
-    /** Đang ở Ban kiểm soát: Trình ký lại = BKS trả về, bắt buộc chọn nhóm lỗi */
+    /** Đang chờ Ban kiểm soát kiểm duyệt */
     atBks,
   };
 }
@@ -247,28 +248,22 @@ export async function confirmPrint(user: CurrentUser, id: string, ip?: string | 
 
 /** Trình ký lại: tạo phiếu mới (sao chép nội dung), số lần tự tăng, bắt buộc lý do */
 /**
- * Trình ký lại: tạo phiếu mới (đang soạn) để in ký lại.
- * Hồ sơ đang ở giai đoạn Ban kiểm soát: đây là BKS trả về -> bắt buộc chọn nhóm lỗi, nội dung lỗi = lý do;
- * ghi nhận 1 lần trả/lỗi rồi mới tạo phiếu. Giai đoạn khác: chỉ cần lý do, không tính lỗi.
+ * Trình ký lại: tạo phiếu mới (đang soạn) để in ký lại, bắt buộc lý do.
+ * Lỗi do Ban kiểm soát trả về được BKS ghi nhận khi bấm "Trả về" (không ghi ở đây).
  */
-export async function resubmitForm(user: CurrentUser, id: string, input: { reason: string; categoryId?: string | null }, ip?: string | null) {
+export async function resubmitForm(user: CurrentUser, id: string, input: { reason: string }, ip?: string | null) {
   const reason = input.reason;
   const form = await loadForm(user, id);
   const state = await formState(user, form);
   if (!state.canResubmit) {
     if (!state.isLatest) throw new AppErrorLite(409, "Chỉ trình ký lại từ phiếu mới nhất của hồ sơ");
+    if (state.atBks) throw new AppErrorLite(409, "Hồ sơ đang chờ Ban kiểm soát kiểm duyệt. Nếu Ban kiểm soát trả về thì mới trình ký lại.");
     throw new AppErrorLite(409, "Không thể trình ký lại phiếu này");
   }
   const resubmitNo = form.document.submissionCount;
   requireReason(resubmitNo, reason);
   const draft = await prisma.signingForm.findFirst({ where: { documentId: form.documentId, status: "DRAFT" } });
   if (draft) throw new AppErrorLite(409, "Hồ sơ đang có một phiếu chưa in");
-  if (state.atBks) {
-    if (!input.categoryId) throw new AppErrorLite(400, "Ban kiểm soát trả về: bắt buộc chọn nhóm lỗi");
-    const cat = await prisma.errorCategory.findFirst({ where: { id: input.categoryId, active: true } });
-    if (!cat) throw new AppErrorLite(400, "Nhóm lỗi không hợp lệ");
-    await performAction(form.documentId, { action: "return", requirement: reason.trim(), errors: [{ categoryId: cat.id, customReason: reason.trim() }] }, user, ip);
-  }
   const old = form.content as FormContent;
   const today = new Date();
   const content: FormContent = {
