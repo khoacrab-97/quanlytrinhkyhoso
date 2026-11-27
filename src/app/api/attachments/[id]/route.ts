@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { handler, notFound, clientIp } from "@/server/api";
 import { audit } from "@/server/audit";
 import { loadModifiable, loadVisible } from "@/server/guards";
-import { readUpload } from "@/server/storage";
+import { INLINE_MIME, mimeFromName, readUpload } from "@/server/storage";
 
 type P = { id: string };
 
@@ -12,10 +12,14 @@ export const GET = handler<P>(async ({ req, user, params }) => {
   if (!a) throw notFound("File");
   await loadVisible(user, a.documentId);
   const buf = await readUpload(a.storedName);
-  const inline = req.nextUrl.searchParams.get("inline") === "1" && /^(application\/pdf|image\/)/.test(a.mimeType);
+  // Kiểu file lấy theo đuôi tên lưu trữ (do hệ thống sinh), không dùng mimeType cũ có thể do trình duyệt khai
+  const mime = mimeFromName(a.storedName);
+  const inline = req.nextUrl.searchParams.get("inline") === "1" && INLINE_MIME.includes(mime);
   return new Response(new Uint8Array(buf), {
     headers: {
-      "Content-Type": a.mimeType,
+      "Content-Type": mime,
+      // PDF cần trình xem tích hợp của trình duyệt nên không sandbox; ảnh và file tải về thì chặn mọi script
+      ...(mime === "application/pdf" ? {} : { "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'" }),
       "Content-Disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(a.fileName)}`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",

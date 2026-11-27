@@ -31,7 +31,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     where: { id: session.sub },
     include: { department: true, projects: { select: { projectId: true } } },
   });
-  if (!u || !u.active) return null;
+  if (!u || !u.active || u.sessionVersion !== session.ver) return null;
   return {
     id: u.id,
     username: u.username,

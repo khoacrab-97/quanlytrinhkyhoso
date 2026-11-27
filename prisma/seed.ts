@@ -112,15 +112,19 @@ async function seedBase() {
     update: {},
   });
 
-  const adminPass = process.env.SEED_ADMIN_PASSWORD || "Admin@123";
-  await prisma.user.upsert({
-    where: { username: "admin" },
-    create: {
-      username: "admin", passwordHash: await bcrypt.hash(adminPass, 10), fullName: "Quản trị hệ thống",
-      role: "ADMIN", dataScope: "ALL", departmentId: dept.ADMIN, position: "Quản trị viên",
-    },
-    update: {},
-  });
+  // Chỉ tạo admin khi hệ thống chưa có Quản trị viên nào (cài lần đầu).
+  // Không tạo lại khi admin đã bị xóa/đổi, tránh sinh tài khoản với mật khẩu mặc định ở các lần cập nhật sau.
+  if (!(await prisma.user.findFirst({ where: { role: "ADMIN" } }))) {
+    const adminPass = process.env.SEED_ADMIN_PASSWORD || "Admin@123";
+    await prisma.user.upsert({
+      where: { username: "admin" },
+      create: {
+        username: "admin", passwordHash: await bcrypt.hash(adminPass, 10), fullName: "Quản trị hệ thống",
+        role: "ADMIN", dataScope: "ALL", departmentId: dept.ADMIN, position: "Quản trị viên",
+      },
+      update: {},
+    });
+  }
   console.log("✔ Đã seed danh mục nền + tài khoản admin");
 }
 

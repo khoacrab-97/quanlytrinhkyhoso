@@ -184,7 +184,7 @@ docker compose --profile prod up -d --build
 ```
 
 - Service `init` chạy `prisma migrate deploy` và seed danh mục nền (không có dữ liệu mẫu) một lần.
-- Service `app` chạy bản Next.js *standalone* tại cổng 3000. File đính kèm và bản sao lưu được lưu trong volume `qltk_storage`.
+- Service `app` chạy bản Next.js *standalone* tại cổng 3000, chỉ mở cho chính máy chủ (`127.0.0.1`); người dùng truy cập qua Caddy (`--profile https`) hoặc reverse proxy riêng. File đính kèm và bản sao lưu được lưu trong volume `qltk_storage`.
 - Đặt reverse proxy (Nginx/Caddy) có **HTTPS** phía trước. Cookie phiên dùng cờ `Secure` khi `NODE_ENV=production`. Nếu chạy HTTP nội bộ không có TLS, đặt `COOKIE_SECURE=false`.
 
 ### Cách 2: Node trực tiếp

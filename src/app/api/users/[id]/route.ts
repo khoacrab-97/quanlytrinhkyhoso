@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { handler, parseBody, badRequest, notFound, clientIp } from "@/server/api";
 import { audit } from "@/server/audit";
-import { approvalFlags, checkAdminDepartment, resolveDivision, userSchema, userSelect } from "@/server/users";
+import { ADMIN_USERNAME, approvalFlags, checkAdminDepartment, resolveDivision, userSchema, userSelect } from "@/server/users";
 
 async function load(id: string) {
   const u = await prisma.user.findFirst({ where: { id, deletedAt: null } });
@@ -25,7 +25,7 @@ export const PATCH = handler<{ id: string }>(
     data.divisionId = await resolveDivision(body, existing.id);
     const updated = await prisma.user.update({
       where: { id: params.id },
-      data: { ...data, role, ...approvalFlags(approvalRole), ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}) },
+      data: { ...data, role, ...approvalFlags(approvalRole), ...(password ? { passwordHash: await bcrypt.hash(password, 10), sessionVersion: { increment: 1 } } : {}) },
       select: userSelect,
     });
     await audit({ userId: user.id, action: password ? "user.update_password" : "user.update", entity: "User", entityId: params.id, detail: { ...data, approvalRole }, ip: clientIp(req) });
@@ -42,6 +42,7 @@ export const DELETE = handler<{ id: string }>(
   async ({ req, user, params }) => {
     const existing = await load(params.id);
     if (existing.id === user.id) throw badRequest("Không thể xóa tài khoản đang đăng nhập");
+    if (existing.username === ADMIN_USERNAME) throw badRequest("Không thể xóa tài khoản admin gốc của hệ thống");
     await prisma.$transaction([
       prisma.projectMember.deleteMany({ where: { userId: existing.id } }),
       prisma.user.update({

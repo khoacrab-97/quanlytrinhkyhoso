@@ -27,7 +27,7 @@ async function main() {
   if (pw.length < 8) throw new Error("Mật khẩu tối thiểu 8 ký tự");
   if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) throw new Error("Mật khẩu phải có cả chữ và số");
   if ((await askHidden("Nhập lại mật khẩu mới: ")) !== pw) throw new Error("Hai lần nhập không khớp");
-  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(pw, 10), active: true } });
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(pw, 10), active: true, sessionVersion: { increment: 1 } } });
   console.log(`✔ Đã đặt lại mật khẩu cho ${username}. Nếu vừa đăng nhập sai nhiều lần, chờ 15 phút hoặc khởi động lại app.`);
 }
 

@@ -42,7 +42,7 @@ services:
       BACKUP_DIR: /app/storage/backups
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000" # chỉ máy chủ truy cập; người dùng vào qua Caddy (HTTPS)
     volumes:
       - qltk_storage:/app/storage
     depends_on:

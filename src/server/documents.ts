@@ -105,8 +105,9 @@ const TRACKED: (keyof DocumentInput)[] = [
 
 export async function updateDocument(id: string, input: DocumentInput, actor: Actor, ip?: string | null) {
   await validateRefs(input);
-  const before = await prisma.document.findFirst({ where: { id, deletedAt: null } });
-  if (!before) throw new AppErrorLite(404, "Hồ sơ không tồn tại");
+  const found = await prisma.document.findFirst({ where: { id, deletedAt: null }, include: { status: true } });
+  if (!found) throw new AppErrorLite(404, "Hồ sơ không tồn tại");
+  const { status, ...before } = found;
 
   const changes: Record<string, { from: unknown; to: unknown }> = {};
   for (const k of TRACKED) {
@@ -116,6 +117,10 @@ export async function updateDocument(id: string, input: DocumentInput, actor: Ac
     if (norm(a) !== norm(b)) changes[k] = { from: a, to: b };
   }
   if (!Object.keys(changes).length) return before;
+  // Thẩm quyền duyệt dựa trên phòng ban và người lập: không cho đổi khi hồ sơ đang trong luồng duyệt
+  if (actor.role !== "ADMIN" && ["SUBMITTED", "REVIEWING"].includes(status.category) && (changes.departmentId || changes.preparerId)) {
+    throw new AppErrorLite(409, `Hồ sơ đang ở bước "${status.name}": không được đổi phòng ban hoặc người lập`);
+  }
 
   return prisma.$transaction(async (tx) => {
     const doc = await tx.document.update({

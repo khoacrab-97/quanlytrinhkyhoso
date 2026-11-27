@@ -16,7 +16,7 @@
     "db:reset": "tsx scripts/purge-sample.ts && tsx prisma/seed.ts --sample",
     "db:backup": "tsx scripts/backup.ts",
     "user:reset-password": "tsx scripts/reset-password.ts",
-    "test": "tsx --test tests/workflow.test.ts tests/signingForms.test.ts tests/approval.test.ts",
+    "test": "tsx --test tests/workflow.test.ts tests/signingForms.test.ts tests/approval.test.ts tests/security.test.ts",
     "db:local": "node scripts/dev-db.mjs",
     "db:purge-sample": "tsx scripts/purge-sample.ts",
     "test:api": "tsx tests/api.smoke.ts"

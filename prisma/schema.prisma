@@ -146,6 +146,8 @@ model User {
   /// Cấu hình giao diện cá nhân (cột bảng, bộ lọc mặc định...)
   preferences  Json?
   lastLoginAt  DateTime?
+  /// Tăng khi đăng xuất / đổi mật khẩu để vô hiệu mọi phiên đã cấp
+  sessionVersion Int       @default(0)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 

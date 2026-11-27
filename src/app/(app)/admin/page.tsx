@@ -132,7 +132,7 @@ function Users() {
                   <td className="td">{u.active ? <Badge tone="green">Hoạt động</Badge> : <Badge>Đã khóa</Badge>}</td>
                   <td className="td whitespace-nowrap">
                     <button className="rounded p-1.5 text-slate-500 hover:bg-slate-100" title="Sửa" onClick={() => setEditing(u)}><Pencil className="h-4 w-4" /></button>
-                    {u.id !== me.id && <button className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Xóa khỏi hệ thống" onClick={() => remove(u)}><Trash2 className="h-4 w-4" /></button>}
+                    {u.id !== me.id && u.username !== "admin" && <button className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Xóa khỏi hệ thống" onClick={() => remove(u)}><Trash2 className="h-4 w-4" /></button>}
                   </td>
                 </tr>
               ))}

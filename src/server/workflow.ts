@@ -175,6 +175,10 @@ export async function performAction(documentId: string, input: ActionInput, acto
       if (!doc) throw new AppErrorLite(404, "Hồ sơ không tồn tại");
 
       const replacing = input.action === "submit" && !!input.withdrawPending && ["SUBMITTED", "REVIEWING"].includes(doc.status.category);
+      // Đang chờ Ban kiểm soát: chỉ BKS duyệt hoặc trả về; không được rút về để trình lại
+      if (replacing && doc.status.code === STATUS.STAGE_BKS && actor.role !== "ADMIN") {
+        throw new AppErrorLite(409, "Hồ sơ đang chờ Ban kiểm soát kiểm duyệt. Nếu Ban kiểm soát trả về thì mới trình ký lại.");
+      }
       if (!actionFits(input.action, doc.status) && !replacing) {
         throw new AppErrorLite(409, input.action === "return"
           ? "Chỉ ghi nhận trả về khi hồ sơ đang ở giai đoạn Ban kiểm soát"

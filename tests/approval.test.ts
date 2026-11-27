@@ -3,7 +3,7 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { prisma } from "../src/lib/prisma";
-import { createDocument } from "../src/server/documents";
+import { createDocument, updateDocument } from "../src/server/documents";
 import { performAction, type Actor } from "../src/server/workflow";
 import { loadApprover, pendingForWhere } from "../src/server/approval";
 
@@ -79,10 +79,26 @@ describe("Thẩm quyền xác nhận giai đoạn", () => {
     assert.deepEqual(await pendingIds("qlpb"), [ids.doc]);
   });
 
+  test("Đang duyệt: không đổi được phòng ban / người lập để giành thẩm quyền", async () => {
+    const d = await prisma.document.findUniqueOrThrow({ where: { id: ids.doc } });
+    const input = {
+      docNumber: d.docNumber, title: d.title, typeId: d.typeId, projectId: d.projectId, contractorId: d.contractorId,
+      departmentId: d.departmentId, preparerId: d.preparerId, submitterId: d.submitterId, recipientId: d.recipientId,
+      preparedDate: d.preparedDate, priority: d.priority, notes: d.notes, customFields: null,
+    };
+    await assert.rejects(() => updateDocument(ids.doc, { ...input, preparerId: u.ptlq2.id }, u.qlpb), /không được đổi phòng ban hoặc người lập/);
+    await assert.rejects(() => updateDocument(ids.doc, { ...input, departmentId: ids.bksDept }, u.qlpb), /không được đổi phòng ban hoặc người lập/);
+  });
+
   test("Quản lý phòng ban phê duyệt -> chờ Ban kiểm soát", async () => {
     await advance("qlpb", "STAGE_BKS");
     assert.equal(await status(), "STAGE_BKS");
     assert.deepEqual(await pendingIds("bks"), [ids.doc], "BKS thấy hồ sơ của phòng khác");
+  });
+
+  test("Đang ở Ban kiểm soát: người lập không rút về trình lại được", async () => {
+    await assert.rejects(() => performAction(ids.doc, { action: "submit", withdrawPending: true }, u.lap), /chờ Ban kiểm soát/);
+    assert.equal(await status(), "STAGE_BKS");
   });
 
   test("Chỉ Ban kiểm soát được trả về; BKS trả về -> chờ in ký lại", async () => {
