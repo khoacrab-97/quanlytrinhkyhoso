@@ -166,10 +166,18 @@ model User {
   auditLogs          AuditLog[]
   recipientProfile   Recipient[]
   signingForms       SigningForm[]
+  createdProjects        Project[]       @relation("CatProject")
+  createdDocumentTypes   DocumentType[]  @relation("CatDocType")
+  createdContractors     Contractor[]    @relation("CatContractor")
+  createdErrorCategories ErrorCategory[] @relation("CatErrorCategory")
+  createdErrorReasons    ErrorReason[]   @relation("CatErrorReason")
   signingFormPrints  SigningFormPrint[]
 }
 
 model Project {
+  /// Người thêm mục này (người được ủy quyền chỉ sửa/xóa mục do mình thêm)
+  createdById String?
+  createdBy   User?   @relation("CatProject", fields: [createdById], references: [id], onDelete: SetNull)
   id          String    @id @default(cuid())
   code        String    @unique
   name        String
@@ -208,6 +216,9 @@ model ProjectMember {
 
 /// Nhà thầu / đơn vị liên quan
 model Contractor {
+  /// Người thêm mục này (người được ủy quyền chỉ sửa/xóa mục do mình thêm)
+  createdById String?
+  createdBy   User?   @relation("CatContractor", fields: [createdById], references: [id], onDelete: SetNull)
   id        String   @id @default(cuid())
   code      String   @unique
   name      String
@@ -256,6 +267,9 @@ model WorkflowStep {
 }
 
 model DocumentType {
+  /// Người thêm mục này (người được ủy quyền chỉ sửa/xóa mục do mình thêm)
+  createdById String?
+  createdBy   User?   @relation("CatDocType", fields: [createdById], references: [id], onDelete: SetNull)
   id             String    @id @default(cuid())
   code           String    @unique
   name           String
@@ -311,6 +325,9 @@ model Recipient {
 
 /// Nhóm lỗi
 model ErrorCategory {
+  /// Người thêm mục này (người được ủy quyền chỉ sửa/xóa mục do mình thêm)
+  createdById String?
+  createdBy   User?   @relation("CatErrorCategory", fields: [createdById], references: [id], onDelete: SetNull)
   id           String   @id @default(cuid())
   code         String   @unique
   name         String
@@ -329,6 +346,9 @@ model ErrorCategory {
 
 /// Nguyên nhân trả hồ sơ (lỗi cụ thể trong nhóm)
 model ErrorReason {
+  /// Người thêm mục này (người được ủy quyền chỉ sửa/xóa mục do mình thêm)
+  createdById String?
+  createdBy   User?   @relation("CatErrorReason", fields: [createdById], references: [id], onDelete: SetNull)
   id         String        @id @default(cuid())
   categoryId String
   category   ErrorCategory @relation(fields: [categoryId], references: [id])

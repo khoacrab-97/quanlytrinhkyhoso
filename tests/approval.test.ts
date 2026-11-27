@@ -30,8 +30,8 @@ before(async () => {
   await mkUser("ptlq2", { departmentId: dept.id, divisionId: k2.id, isRelatedPerson: true });
   await mkUser("qlpb", { departmentId: dept.id, isDeptManager: true });
   await mkUser("bks", { departmentId: bks.id });
-  const [type, project] = await Promise.all([prisma.documentType.findFirstOrThrow(), prisma.project.findFirst()]);
-  const p = project ?? (await prisma.project.create({ data: { code: `${TAG}-CT`, name: "Công trình test" } }));
+  const type = await prisma.documentType.findFirstOrThrow();
+  const p = await prisma.project.create({ data: { code: `${TAG}-CT`, name: "Công trình test" } }); // dự án riêng của file test
   const doc = await createDocument(
     { docNumber: null, title: "Hồ sơ test thẩm quyền", typeId: type.id, projectId: p.id, contractorId: null, departmentId: dept.id, preparerId: u.lap.id, submitterId: null, recipientId: null, preparedDate: new Date(Date.now() - 86_400_000), priority: 2, notes: null, customFields: null },
     u.lap,

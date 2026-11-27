@@ -78,7 +78,7 @@ function UserEditor({ row, onClose, onSaved }: { row: Any | null; onClose: () =>
               ))}
             </div>
           )}
-          <p className="mt-1 text-xs text-slate-500">Người được ủy quyền thấy trang Danh mục và chỉ được thêm mới các mục đã tick. Sửa, ngừng dùng, xóa vẫn do Quản trị viên.</p>
+          <p className="mt-1 text-xs text-slate-500">Người được ủy quyền thấy trang Danh mục, được thêm mới các mục đã tick, và chỉ sửa / xóa được những mục do chính mình thêm.</p>
         </div>
       )}
       <div className="mt-3"><ErrorBox error={err} /></div>

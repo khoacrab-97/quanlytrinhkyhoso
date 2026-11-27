@@ -18,10 +18,10 @@ before(async () => {
   actor = { id: admin.id, role: "ADMIN", departmentId: admin.departmentId };
   const [type, project, dept] = await Promise.all([
     prisma.documentType.findFirstOrThrow({ where: { code: "TTGD" } }),
-    prisma.project.findFirst(),
+    prisma.project.upsert({ where: { code: "TEST-CT" }, update: {}, create: { code: "TEST-CT", name: "Công trình test" } }), // dự án riêng của file test
     prisma.department.findFirstOrThrow(),
   ]);
-  const p = project ?? (await prisma.project.create({ data: { code: "TEST-CT", name: "Công trình test" } }));
+  const p = project;
   const doc = await createDocument(
     { docNumber: "TEST/001", title: "Hồ sơ kiểm thử tự động", typeId: type.id, projectId: p.id, contractorId: null, departmentId: dept.id, preparerId: admin.id, submitterId: null, recipientId: null, preparedDate: day(10), priority: 2, notes: null, customFields: null },
     actor,
@@ -32,6 +32,7 @@ before(async () => {
 
 after(async () => {
   await prisma.document.delete({ where: { id: docId } }).catch(() => {});
+  await prisma.project.deleteMany({ where: { code: "TEST-CT", documents: { none: {} } } });
   await prisma.$disconnect();
 });
 

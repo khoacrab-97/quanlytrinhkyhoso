@@ -1,6 +1,6 @@
 "use client";
 // Danh mục quản lý: Công trình/dự án, Loại hồ sơ, CĐT/NCC/thầu phụ, Nhóm lỗi, Nguyên nhân trả hồ sơ.
-// Quản trị viên: toàn quyền. Người được ủy quyền: chỉ thấy và thêm mới các danh mục được giao.
+// Quản trị viên: toàn quyền. Người được ủy quyền: thấy, thêm mới các danh mục được giao; sửa/xóa mục do chính mình thêm.
 // Phòng ban, Khối, Trạng thái, Trường mở rộng nằm ở Quản trị hệ thống.
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -19,7 +19,7 @@ function CatalogsInner() {
   if (!entity) return <ErrorBox error="Bạn chưa được ủy quyền danh mục nào" />;
   return (
     <div>
-      <PageHeader title="Danh mục quản lý" subtitle={isAdmin ? "Dữ liệu dùng chung, liên kết với toàn bộ các module — tránh nhập lặp lại" : "Bạn được ủy quyền thêm mới các danh mục dưới đây. Sửa, ngừng dùng, xóa do Quản trị viên thực hiện."} />
+      <PageHeader title="Danh mục quản lý" subtitle={isAdmin ? "Dữ liệu dùng chung, liên kết với toàn bộ các module — tránh nhập lặp lại" : "Bạn được ủy quyền thêm mới các danh mục dưới đây, và sửa / xóa được các mục do chính bạn thêm (xem cột Được thêm bởi)."} />
       <Tabs value={entity} onChange={(t) => router.replace(`/catalogs?tab=${t}`)} tabs={tabs.map(([value, label]) => ({ value, label }))} />
       <CatalogTable key={entity} entity={entity} canEdit={isAdmin} />
     </div>

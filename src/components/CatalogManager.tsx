@@ -6,6 +6,7 @@ import { api, useApi, useLookups } from "@/lib/client";
 import { fmtDate, toInputDate } from "@/lib/dates";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { Badge, Button, Card, ErrorBox, Field, Modal, Select, Spinner, useConfirm, useToast } from "@/components/ui";
+import { useMe } from "@/components/AppShell";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
@@ -14,6 +15,8 @@ type Col = { label: string; render: (r: Any) => ReactNode };
 type Def = { label: string; desc: string; fields: FieldDef[]; cols: Col[]; defaults?: Record<string, unknown> };
 
 const activeCol: Col = { label: "Trạng thái", render: (r) => (r.active ? <Badge tone="green">Đang dùng</Badge> : <Badge tone="gray">Vô hiệu</Badge>) };
+/** Người thêm mục (5 danh mục được ủy quyền) */
+const createdByCol: Col = { label: "Được thêm bởi", render: (r) => r.createdBy?.fullName ?? <span className="text-slate-400">—</span> };
 const usage = (k: string, label = "Đang dùng") => ({ label, render: (r: Any) => r._count?.[k] ?? 0 });
 
 export const DEFS: Record<string, Def> = {
@@ -26,7 +29,7 @@ export const DEFS: Record<string, Def> = {
       { key: "partnerIds", label: "Chủ đầu tư / NCC / thầu phụ của dự án", type: "multi", full: true, options: (lk) => lk.contractors.map((c: Any) => ({ value: c.id, label: c.name })), hint: "Phiếu trình ký của dự án chỉ chọn đối tác trong danh sách này" },
       { key: "description", label: "Mô tả", type: "textarea", full: true }, { key: "active", label: "Đang sử dụng", type: "bool" },
     ],
-    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Tên công trình", render: (r) => r.name }, { label: "Chủ đầu tư", render: (r) => r.investor }, { label: "NCC / thầu phụ", render: (r) => <span className="whitespace-normal text-xs">{r.partners?.map((x: Any) => x.contractor.name).join(", ")}</span> }, { label: "Địa điểm", render: (r) => r.location }, { label: "Khởi công", render: (r) => fmtDate(r.startDate) }, usage("documents", "Số HS"), usage("members", "Thành viên"), activeCol],
+    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Tên công trình", render: (r) => r.name }, { label: "Chủ đầu tư", render: (r) => r.investor }, { label: "NCC / thầu phụ", render: (r) => <span className="whitespace-normal text-xs">{r.partners?.map((x: Any) => x.contractor.name).join(", ")}</span> }, { label: "Địa điểm", render: (r) => r.location }, { label: "Khởi công", render: (r) => fmtDate(r.startDate) }, usage("documents", "Số HS"), usage("members", "Thành viên"), createdByCol, activeCol],
   },
   documentTypes: {
     label: "Loại hồ sơ", desc: "Phân loại hồ sơ trình ký",
@@ -34,7 +37,7 @@ export const DEFS: Record<string, Def> = {
       { key: "code", label: "Mã loại", required: true }, { key: "name", label: "Tên loại hồ sơ", required: true },
       { key: "description", label: "Mô tả", type: "textarea", full: true }, { key: "active", label: "Đang sử dụng", type: "bool" },
     ],
-    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Tên loại", render: (r) => r.name }, usage("documents", "Số HS"), activeCol],
+    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Tên loại", render: (r) => r.name }, usage("documents", "Số HS"), createdByCol, activeCol],
   },
   departments: {
     label: "Bộ phận", desc: "Phòng ban, ban chỉ huy, bộ phận tham gia lập và xử lý hồ sơ",
@@ -52,7 +55,7 @@ export const DEFS: Record<string, Def> = {
   contractors: {
     label: "CĐT / NCC / thầu phụ", desc: "Chủ đầu tư, nhà cung cấp, thầu phụ. Gắn vào dự án tại tab Công trình / dự án",
     fields: [{ key: "code", label: "Mã", required: true }, { key: "name", label: "Tên đơn vị", required: true, full: true }, { key: "taxCode", label: "Mã số thuế" }, { key: "contact", label: "Liên hệ" }, { key: "active", label: "Đang sử dụng", type: "bool" }],
-    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Tên đơn vị", render: (r) => r.name }, { label: "MST", render: (r) => r.taxCode }, { label: "Liên hệ", render: (r) => r.contact }, usage("documents", "Số HS"), activeCol],
+    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Tên đơn vị", render: (r) => r.name }, { label: "MST", render: (r) => r.taxCode }, { label: "Liên hệ", render: (r) => r.contact }, usage("documents", "Số HS"), createdByCol, activeCol],
   },
   errorCategories: {
     label: "Nhóm lỗi", desc: "Nhóm lỗi dùng để phân loại nguyên nhân trả hồ sơ",
@@ -62,7 +65,7 @@ export const DEFS: Record<string, Def> = {
       { key: "description", label: "Mô tả", type: "textarea", full: true }, { key: "active", label: "Đang sử dụng", type: "bool" },
     ],
     defaults: { attributable: true },
-    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Nhóm lỗi", render: (r) => r.name }, { label: "Tính trách nhiệm", render: (r) => (r.attributable ? "Có" : <Badge tone="gray">Khách quan</Badge>) }, usage("reasons", "Số nguyên nhân"), usage("errors", "Lỗi đã ghi nhận"), activeCol],
+    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Nhóm lỗi", render: (r) => r.name }, { label: "Tính trách nhiệm", render: (r) => (r.attributable ? "Có" : <Badge tone="gray">Khách quan</Badge>) }, usage("reasons", "Số nguyên nhân"), usage("errors", "Lỗi đã ghi nhận"), createdByCol, activeCol],
   },
   errorReasons: {
     label: "Nguyên nhân trả hồ sơ", desc: "Các lỗi cụ thể trong từng nhóm lỗi",
@@ -70,7 +73,7 @@ export const DEFS: Record<string, Def> = {
       { key: "categoryId", label: "Nhóm lỗi", type: "select", required: true, options: (lk) => lk.errorCategories.map((c: Any) => ({ value: c.id, label: c.name })) },
       { key: "code", label: "Mã", required: true }, { key: "name", label: "Nội dung lỗi", required: true, full: true }, { key: "order", label: "Thứ tự", type: "number" }, { key: "active", label: "Đang sử dụng", type: "bool" },
     ],
-    cols: [{ label: "Nhóm", render: (r) => r.category?.name }, { label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Nguyên nhân", render: (r) => r.name }, usage("errors", "Lần xuất hiện"), activeCol],
+    cols: [{ label: "Nhóm", render: (r) => r.category?.name }, { label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Nguyên nhân", render: (r) => r.name }, usage("errors", "Lần xuất hiện"), createdByCol, activeCol],
   },
   statuses: {
     label: "Trạng thái", desc: "Trạng thái hồ sơ. Trạng thái tùy chỉnh phải thuộc một nhóm để hệ thống áp dụng logic nghiệp vụ",
@@ -175,8 +178,10 @@ function CatalogEditor({ entity, row, onClose, onSaved }: { entity: string; row:
   );
 }
 
-/** canEdit = false: chỉ xem và thêm mới (người được ủy quyền); sửa / ngừng dùng / xóa dành cho Quản trị viên */
+/** canEdit = true: Quản trị viên sửa / ngừng dùng / xóa mọi mục. Người được ủy quyền chỉ sửa / xóa mục do chính mình thêm */
 export function CatalogTable({ entity, canEdit }: { entity: string; canEdit: boolean }) {
+  const me = useMe();
+  const editable = (r: Any) => canEdit || (!!r.createdById && r.createdById === me.id);
   const toast = useToast();
   const { confirm, dialog } = useConfirm();
   const [q, setQ] = useState("");
@@ -226,12 +231,12 @@ export function CatalogTable({ entity, canEdit }: { entity: string; canEdit: boo
         {isLoading && !data ? <Spinner /> : (
           <div className="scroll-thin overflow-x-auto">
             <table className="w-full min-w-[720px]">
-              <thead><tr>{def.cols.map((c) => <th key={c.label} className="th">{c.label}</th>)}{canEdit && <th className="th w-28"></th>}</tr></thead>
+              <thead><tr>{def.cols.map((c) => <th key={c.label} className="th">{c.label}</th>)}<th className="th w-28"></th></tr></thead>
               <tbody>
                 {data?.map((r) => (
                   <tr key={r.id} className={r.active === false ? "bg-slate-50 text-slate-400" : "hover:bg-slate-50"}>
                     {def.cols.map((c) => <td key={c.label} className="td">{c.render(r)}</td>)}
-                    {canEdit && (
+                    {editable(r) ? (
                       <td className="td whitespace-nowrap text-right">
                         <button className="rounded p-1.5 text-slate-500 hover:bg-slate-100" title="Sửa" onClick={() => setEditing(r)}><Pencil className="h-4 w-4" /></button>
                         {"active" in r && !(entity === "statuses" && r.isSystem) && (
@@ -239,7 +244,7 @@ export function CatalogTable({ entity, canEdit }: { entity: string; canEdit: boo
                         )}
                         {!(entity === "statuses" && r.isSystem) && <button className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Xóa" onClick={() => remove(r)}><Trash2 className="h-4 w-4" /></button>}
                       </td>
-                    )}
+                    ) : <td className="td" />}
                   </tr>
                 ))}
                 {data && !data.length && <tr><td colSpan={def.cols.length + 1} className="td py-8 text-center text-slate-400">Chưa có dữ liệu</td></tr>}
