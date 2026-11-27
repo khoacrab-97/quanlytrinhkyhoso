@@ -10,19 +10,21 @@ async function load(id: string) {
   return u;
 }
 
-/** Sửa thông tin tài khoản: phòng ban, vai trò trình ký, quyền hệ thống... */
+/** Sửa thông tin tài khoản: phòng ban, vai trò (gồm Quản trị viên)... */
 export const PATCH = handler<{ id: string }>(
   async ({ req, user, params }) => {
     const existing = await load(params.id);
     const body = await parseBody(req, userSchema);
     if (existing.id === user.id && !body.active) throw badRequest("Không thể tự khóa tài khoản của chính mình");
-    if (existing.id === user.id && body.role && body.role !== "ADMIN") throw badRequest("Không thể tự hạ quyền Quản trị của chính mình");
+    if (existing.id === user.id && existing.role === "ADMIN" && body.approvalRole !== "ADMIN") throw badRequest("Không thể tự bỏ vai trò Quản trị viên của chính mình");
+    // Chọn Quản trị viên -> quyền ADMIN; bỏ Quản trị viên -> về Nhân viên; vai trò khác giữ nguyên quyền đang có (tab Phân quyền)
+    const role = body.approvalRole === "ADMIN" ? "ADMIN" : existing.role === "ADMIN" ? "STAFF" : existing.role;
     const { password, username: _u, approvalRole, ...data } = body;
     void _u; // tên đăng nhập không đổi được
     data.divisionId = await resolveDivision(body, existing.id);
     const updated = await prisma.user.update({
       where: { id: params.id },
-      data: { ...data, ...approvalFlags(approvalRole), ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}) },
+      data: { ...data, role, ...approvalFlags(approvalRole), ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}) },
       select: userSelect,
     });
     await audit({ userId: user.id, action: password ? "user.update_password" : "user.update", entity: "User", entityId: params.id, detail: { ...data, approvalRole }, ip: clientIp(req) });

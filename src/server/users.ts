@@ -17,28 +17,28 @@ export const userSchema = z.object({
   position: z.string().trim().max(100).optional().nullable().transform((v) => v || null),
   departmentId: z.string({ required_error: "Chọn phòng ban" }).min(1, "Chọn phòng ban"),
   divisionId: z.string().optional().nullable().transform((v) => v || null),
-  /** Vai trò trình ký: Nhân viên / Phụ trách liên quan / Quản lý phòng ban */
-  approvalRole: z.enum(["STAFF", "RELATED", "DEPT_MANAGER"]).default("STAFF"),
-  /** Quyền hệ thống (Quản trị viên / Quản lý / Nhân viên / Người xem); bỏ trống khi tạo = Nhân viên */
-  role: z.enum(["ADMIN", "MANAGER", "STAFF", "VIEWER"]).optional(),
+  /** Vai trò: Nhân viên / Phụ trách liên quan / Quản lý phòng ban / Quản trị viên (toàn quyền hệ thống) */
+  approvalRole: z.enum(["STAFF", "RELATED", "DEPT_MANAGER", "ADMIN"]).default("STAFF"),
   active: z.boolean().default(true),
   password: passwordSchema.optional().or(z.literal("")).transform((v) => v || undefined),
 });
 
 /** Vai trò trình ký -> cờ lưu trong DB (mỗi người một vai trò) */
-export function approvalFlags(r: "STAFF" | "RELATED" | "DEPT_MANAGER") {
+export function approvalFlags(r: "STAFF" | "RELATED" | "DEPT_MANAGER" | "ADMIN") {
   return { isRelatedPerson: r === "RELATED", isDeptManager: r === "DEPT_MANAGER" };
 }
 
 /**
  * Kiểm tra cơ cấu Phòng ban - Khối - Vai trò, trả về divisionId sẽ lưu:
+ *  - Quản trị viên: không thuộc khối.
  *  - Quản lý phòng ban: không thuộc khối, mỗi phòng ban chỉ 1 người.
  *  - Nhân viên / Phụ trách liên quan: bắt buộc chọn khối nếu phòng ban có khối; khối phải thuộc phòng ban.
  */
 export async function resolveDivision(
-  body: { departmentId: string; divisionId: string | null; approvalRole: "STAFF" | "RELATED" | "DEPT_MANAGER" },
+  body: { departmentId: string; divisionId: string | null; approvalRole: "STAFF" | "RELATED" | "DEPT_MANAGER" | "ADMIN" },
   userId?: string,
 ) {
+  if (body.approvalRole === "ADMIN") return null;
   if (body.approvalRole === "DEPT_MANAGER") {
     const other = await prisma.user.findFirst({
       where: { departmentId: body.departmentId, isDeptManager: true, deletedAt: null, ...(userId ? { id: { not: userId } } : {}) },
