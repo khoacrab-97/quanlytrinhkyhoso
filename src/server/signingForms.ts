@@ -14,7 +14,7 @@ import { AppErrorLite } from "./errors";
 import { createDocument } from "./documents";
 import { canModifyDocument, documentScopeWhere } from "./scope";
 import { performAction } from "./workflow";
-import { STATUS } from "@/lib/constants";
+import { NO_WITHDRAW_STAGES, noWithdrawMessage } from "@/lib/constants";
 import type { CurrentUser } from "./session";
 
 const txt = (max: number) => z.string().trim().max(max).optional().nullable().transform((v) => v || "");
@@ -79,7 +79,7 @@ async function loadDocForForm(user: CurrentUser, documentId: string) {
   if (!doc) throw new AppErrorLite(404, "Hồ sơ không tồn tại hoặc bạn không có quyền truy cập");
   if (!canModifyDocument(user, doc)) throw new AppErrorLite(403, "Bạn không có quyền lập phiếu trình ký cho hồ sơ này");
   if (CLOSED.includes(doc.status.category)) throw new AppErrorLite(409, `Hồ sơ đang ở trạng thái "${doc.status.name}", không thể trình ký`);
-  if (doc.status.code === STATUS.STAGE_BKS) throw new AppErrorLite(409, "Hồ sơ đang chờ Ban kiểm soát kiểm duyệt. Nếu Ban kiểm soát trả về thì mới trình ký lại.");
+  if (NO_WITHDRAW_STAGES.includes(doc.status.code)) throw new AppErrorLite(409, noWithdrawMessage(doc.status.name));
   if (doc.signingForms.length) throw new AppErrorLite(409, "Hồ sơ đang có một phiếu chưa in. Hãy mở phiếu đó để sửa / in.");
   return doc;
 }
@@ -145,7 +145,7 @@ export async function formState(user: CurrentUser, form: Awaited<ReturnType<type
   const reprintUntil = form.printedAt ? new Date(form.printedAt.getTime() + minutes * 60_000) : null;
   const closed = CLOSED.includes(form.document.status.category);
   const returned = form.document.status.category === "RETURNED";
-  const atBks = form.document.status.code === STATUS.STAGE_BKS;
+  const atBks = NO_WITHDRAW_STAGES.includes(form.document.status.code);
   return {
     reprintMinutes: minutes,
     reprintUntil,
@@ -153,12 +153,12 @@ export async function formState(user: CurrentUser, form: Awaited<ReturnType<type
     canPrint: handle && form.status === "DRAFT" && !closed && !atBks,
     // Ban kiểm soát đã trả về thì không in lại bản cũ: bắt buộc In ký lại (phiếu mới, có lý do)
     canReprint: handle && form.status === "PRINTED" && latest?.id === form.id && !returned && !closed && !!reprintUntil && reprintUntil > new Date(),
-    // Đang ở Ban kiểm soát: chờ BKS kiểm duyệt hoặc trả về, người lập chưa được trình ký lại
+    // Đang ở Ban kiểm soát hoặc chờ TGĐ ký: người lập chưa được trình ký lại (chỉ khi BKS trả về)
     canResubmit: handle && form.status === "PRINTED" && latest?.id === form.id && !closed && !atBks,
     nextResubmitNo: form.document.submissionCount,
     isLatest: latest?.id === form.id,
     bksReturned: returned,
-    /** Đang chờ Ban kiểm soát kiểm duyệt */
+    /** Đang ở Ban kiểm soát hoặc chờ TGĐ ký */
     atBks,
   };
 }
@@ -258,7 +258,7 @@ export async function resubmitForm(user: CurrentUser, id: string, input: { reaso
   const state = await formState(user, form);
   if (!state.canResubmit) {
     if (!state.isLatest) throw new AppErrorLite(409, "Chỉ trình ký lại từ phiếu mới nhất của hồ sơ");
-    if (state.atBks) throw new AppErrorLite(409, "Hồ sơ đang chờ Ban kiểm soát kiểm duyệt. Nếu Ban kiểm soát trả về thì mới trình ký lại.");
+    if (state.atBks) throw new AppErrorLite(409, noWithdrawMessage(form.document.status.name));
     throw new AppErrorLite(409, "Không thể trình ký lại phiếu này");
   }
   const resubmitNo = form.document.submissionCount;

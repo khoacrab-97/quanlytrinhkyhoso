@@ -40,7 +40,7 @@
     "recharts": "^3.2.1",
     "server-only": "^0.0.1",
     "swr": "^2.3.6",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",
@@ -64,6 +64,9 @@
     "@embedded-postgres/windows-x64@17.5.0-beta.15": true
   },
   "overrides": {
-    "postcss": "^8.5.33"
+    "postcss": "^8.5.33",
+    "effect": "^3.22.5",
+    "deepmerge-ts": "^8.0.2",
+    "uuid": "^11.1.1"
   }
 }

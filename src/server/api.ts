@@ -1,11 +1,14 @@
 import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
-import { ZodError, type ZodTypeAny, type z } from "zod";
+import { ZodError, config, locales, type ZodTypeAny, type z } from "zod";
 import { Prisma } from "@prisma/client";
 import { can, type Permission } from "@/lib/permissions";
 import { getCurrentUser, type CurrentUser } from "./session";
 
 import { AppErrorLite } from "./errors";
+
+// Thông báo lỗi mặc định của zod bằng tiếng Việt (các thông báo tự đặt trong schema vẫn giữ nguyên)
+config(locales.vi());
 
 /** Lỗi nghiệp vụ có mã HTTP rõ ràng */
 export const AppError = AppErrorLite;

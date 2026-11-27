@@ -21,10 +21,10 @@ export const documentInputSchema = z.object({
   preparerId: z.string().min(1, "Chọn người lập"),
   submitterId: optId,
   recipientId: optId,
-  preparedDate: z.coerce.date({ errorMap: () => ({ message: "Ngày lập không hợp lệ" }) }),
+  preparedDate: z.coerce.date({ error: "Ngày lập không hợp lệ" }),
   priority: z.coerce.number().int().min(1).max(3).default(2),
   notes: z.string().max(4000).optional().nullable(),
-  customFields: z.record(z.unknown()).optional().nullable(),
+  customFields: z.record(z.string(), z.unknown()).optional().nullable(),
   readyToSubmit: z.boolean().optional(),
 });
 export type DocumentInput = z.infer<typeof documentInputSchema>;

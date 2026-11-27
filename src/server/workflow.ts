@@ -8,7 +8,7 @@
 import { z } from "zod";
 import type { ActivityType, DocumentStatus, Prisma, StatusCategory } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { STAGES, STATUS, stageIndex } from "@/lib/constants";
+import { NO_WITHDRAW_STAGES, noWithdrawMessage, STAGES, STATUS, stageIndex } from "@/lib/constants";
 import { audit, notify } from "./audit";
 import { canConfirm, canReturn, loadApprover, WAITING_FOR } from "./approval";
 import { AppErrorLite } from "./errors";
@@ -39,7 +39,7 @@ export const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("advance"),
     at: optDate,
-    stage: z.enum([STATUS.STAGE_MANAGER, STATUS.STAGE_BKS, STATUS.STAGE_CEO, STATUS.CEO_SIGNED], { errorMap: () => ({ message: "Chọn giai đoạn cần xác nhận" }) }),
+    stage: z.enum([STATUS.STAGE_MANAGER, STATUS.STAGE_BKS, STATUS.STAGE_CEO, STATUS.CEO_SIGNED], { error: "Chọn giai đoạn cần xác nhận" }),
     note: z.string().max(2000).optional().nullable(),
   }),
   z.object({
@@ -175,9 +175,9 @@ export async function performAction(documentId: string, input: ActionInput, acto
       if (!doc) throw new AppErrorLite(404, "Hồ sơ không tồn tại");
 
       const replacing = input.action === "submit" && !!input.withdrawPending && ["SUBMITTED", "REVIEWING"].includes(doc.status.category);
-      // Đang chờ Ban kiểm soát: chỉ BKS duyệt hoặc trả về; không được rút về để trình lại
-      if (replacing && doc.status.code === STATUS.STAGE_BKS && actor.role !== "ADMIN") {
-        throw new AppErrorLite(409, "Hồ sơ đang chờ Ban kiểm soát kiểm duyệt. Nếu Ban kiểm soát trả về thì mới trình ký lại.");
+      // Đang ở Ban kiểm soát / chờ TGĐ ký: không được rút về để trình lại
+      if (replacing && NO_WITHDRAW_STAGES.includes(doc.status.code) && actor.role !== "ADMIN") {
+        throw new AppErrorLite(409, noWithdrawMessage(doc.status.name));
       }
       if (!actionFits(input.action, doc.status) && !replacing) {
         throw new AppErrorLite(409, input.action === "return"

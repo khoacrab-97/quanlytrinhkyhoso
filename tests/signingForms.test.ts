@@ -94,7 +94,7 @@ describe("Phiếu trình ký", () => {
     await prisma.signingForm.update({ where: { id: latest.id }, data: { printedAt: new Date() } }); // còn trong 60 phút
     await performAction(docId, { action: "advance", stage: "STAGE_BKS" }, me);
     assert.equal((await formState(me, await load(latest.id))).atBks, true);
-    await assert.rejects(() => resubmitForm(me, latest.id, { reason: "Sai số liệu bảng tổng hợp" }), /chờ Ban kiểm soát/);
+    await assert.rejects(() => resubmitForm(me, latest.id, { reason: "Sai số liệu bảng tổng hợp" }), /không được rút về/);
     const cat = await prisma.errorCategory.findFirstOrThrow({ where: { code: "ND" } });
     await performAction(docId, { action: "return", requirement: "Sai số liệu bảng tổng hợp", errors: [{ categoryId: cat.id, customReason: "Sai số liệu bảng tổng hợp" }] }, me);
     const f = await resubmitForm(me, latest.id, { reason: "Sai số liệu bảng tổng hợp" });

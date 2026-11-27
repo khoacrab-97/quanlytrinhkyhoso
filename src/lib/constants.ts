@@ -10,6 +10,11 @@ export const STATUS = {
   CANCELLED: "CANCELLED", // Đã hủy
 } as const;
 
+/** Từ Ban kiểm soát trở đi người lập không được rút hồ sơ về trình lại; chỉ khi BKS trả về mới trình ký lại */
+export const NO_WITHDRAW_STAGES: string[] = [STATUS.STAGE_BKS, STATUS.STAGE_CEO];
+export const noWithdrawMessage = (statusName: string) =>
+  `Hồ sơ đang ở bước "${statusName}": người lập không được rút về trình lại. Chỉ khi Ban kiểm soát trả về mới trình ký lại.`;
+
 /**
  * Các giai đoạn cố định sau khi in phiếu. Người lập xác nhận tới giai đoạn nào thì ghi thời điểm lúc xác nhận.
  * label: hồ sơ đang ở giai đoạn; done: nội dung hiển thị khi xác nhận (mốc đạt được để vào giai đoạn này).

@@ -97,7 +97,7 @@ describe("Thẩm quyền xác nhận giai đoạn", () => {
   });
 
   test("Đang ở Ban kiểm soát: người lập không rút về trình lại được", async () => {
-    await assert.rejects(() => performAction(ids.doc, { action: "submit", withdrawPending: true }, u.lap), /chờ Ban kiểm soát/);
+    await assert.rejects(() => performAction(ids.doc, { action: "submit", withdrawPending: true }, u.lap), /không được rút về/);
     assert.equal(await status(), "STAGE_BKS");
   });
 
@@ -116,6 +116,7 @@ describe("Thẩm quyền xác nhận giai đoạn", () => {
     await advance("qlpb", "STAGE_BKS");
     await advance("bks", "STAGE_CEO");
     assert.equal(await status(), "STAGE_CEO");
+    await assert.rejects(() => performAction(ids.doc, { action: "submit", withdrawPending: true }, u.lap), /không được rút về/);
     await assert.rejects(() => advance("lap", "CEO_SIGNED"), /Chỉ Ban kiểm soát/);
     await assert.rejects(() => advance("qlpb", "CEO_SIGNED"), /Chỉ Ban kiểm soát/);
     await advance("bks", "CEO_SIGNED");

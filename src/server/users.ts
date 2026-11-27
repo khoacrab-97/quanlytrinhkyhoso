@@ -16,7 +16,7 @@ export const userSchema = z.object({
   email: z.string().trim().email("Email không hợp lệ").optional().nullable().or(z.literal("")).transform((v) => v || null),
   phone: z.string().trim().max(20).optional().nullable().transform((v) => v || null),
   position: z.string().trim().max(100).optional().nullable().transform((v) => v || null),
-  departmentId: z.string({ required_error: "Chọn phòng ban" }).min(1, "Chọn phòng ban"),
+  departmentId: z.string({ error: "Chọn phòng ban" }).min(1, "Chọn phòng ban"),
   divisionId: z.string().optional().nullable().transform((v) => v || null),
   /** Vai trò: Nhân viên / Phụ trách liên quan / Quản lý phòng ban / Quản trị viên (toàn quyền hệ thống) */
   approvalRole: z.enum(["STAFF", "RELATED", "DEPT_MANAGER", "ADMIN"]).default("STAFF"),

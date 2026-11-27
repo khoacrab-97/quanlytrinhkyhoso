@@ -11,7 +11,7 @@ export const GET = handler(async () => {
 
 export const PUT = handler(
   async ({ req, user }) => {
-    const body = await parseBody(req, z.record(z.string().max(100)));
+    const body = await parseBody(req, z.record(z.string(), z.string().max(100)));
     for (const [key, value] of Object.entries(body)) {
       if (!DEFAULT_SETTINGS[key]) throw badRequest(`Cấu hình không hợp lệ: ${key}`);
       if (key.startsWith("alert.") || key === "return.defaultFixDays" || key === "form.reprintMinutes") {
