@@ -34,12 +34,12 @@ const ERROR_GROUPS: { code: string; name: string; attributable: boolean; reasons
 
 const DEPARTMENTS = [
   ["BGD", "Ban Giám đốc"],
-  ["PDA", "Phòng Dự án"],
+  ["DA", "Phòng Dự án"],
   ["BCH", "Ban Chỉ huy công trình"],
-  ["PKT", "Phòng Kỹ thuật"],
-  ["PKTOAN", "Phòng Kế toán"],
-  ["PVT", "Phòng Vật tư - Thiết bị"],
-  ["PHC", "Phòng Hành chính - Nhân sự"],
+  ["KT", "Phòng Kỹ thuật"],
+  ["KTOAN", "Phòng Kế toán"],
+  ["VT", "Phòng Vật tư - Thiết bị"],
+  ["HC", "Phòng Hành chính - Nhân sự"],
   // Thành viên Ban kiểm soát (phòng ban mã BKS) xác nhận giai đoạn Ban kiểm soát và TGĐ đã ký
   ["BKS", "Ban kiểm soát"],
   // Phòng ban riêng của tài khoản admin (khóa, không sửa/xóa được)
@@ -48,8 +48,8 @@ const DEPARTMENTS = [
 
 /** Khối của phòng ban: [mã, tên, mã phòng ban]. Hiện có Phòng Dự án; các phòng khác thêm tại Danh mục → Khối */
 const DIVISIONS = [
-  ["PDA-PT", "Khối Phát triển dự án", "PDA"],
-  ["PDA-TC", "Khối Thi công dự án", "PDA"],
+  ["PDA-PT", "Khối Phát triển dự án", "DA"],
+  ["PDA-TC", "Khối Thi công dự án", "DA"],
 ] as const;
 
 async function seedBase() {
@@ -181,17 +181,17 @@ async function seedSample() {
   // [username, fullName, role, scope, dept, position, errorRate]
   const USERS: [string, string, "MANAGER" | "STAFF" | "VIEWER", "ALL" | "DEPARTMENT" | "PROJECT" | "OWN", string, string, number][] = [
     ["giamdoc", "Nguyễn Văn Hùng", "MANAGER", "ALL", "BGD", "Giám đốc", 0],
-    ["truongpda", "Trần Thị Mai", "MANAGER", "ALL", "PDA", "Trưởng phòng Dự án", 0.2],
-    ["truongpkt", "Lê Quang Minh", "MANAGER", "DEPARTMENT", "PKT", "Trưởng phòng Kỹ thuật", 0.2],
+    ["truongpda", "Trần Thị Mai", "MANAGER", "ALL", "DA", "Trưởng phòng Dự án", 0.2],
+    ["truongpkt", "Lê Quang Minh", "MANAGER", "DEPARTMENT", "KT", "Trưởng phòng Kỹ thuật", 0.2],
     ["chihuy1", "Phạm Đức Thắng", "MANAGER", "PROJECT", "BCH", "Chỉ huy trưởng", 0.3],
-    ["ketoantruong", "Vũ Thị Lan", "MANAGER", "DEPARTMENT", "PKTOAN", "Kế toán trưởng", 0.15],
-    ["nv.an", "Đỗ Minh An", "STAFF", "DEPARTMENT", "PDA", "Kỹ sư dự án", 0.25],
+    ["ketoantruong", "Vũ Thị Lan", "MANAGER", "DEPARTMENT", "KTOAN", "Kế toán trưởng", 0.15],
+    ["nv.an", "Đỗ Minh An", "STAFF", "DEPARTMENT", "DA", "Kỹ sư dự án", 0.25],
     ["nv.binh", "Hoàng Văn Bình", "STAFF", "DEPARTMENT", "BCH", "Kỹ sư hiện trường", 0.55],
-    ["nv.chi", "Ngô Thị Chi", "STAFF", "DEPARTMENT", "PKT", "Kỹ sư QS", 0.35],
+    ["nv.chi", "Ngô Thị Chi", "STAFF", "DEPARTMENT", "KT", "Kỹ sư QS", 0.35],
     ["nv.dung", "Bùi Tiến Dũng", "STAFF", "DEPARTMENT", "BCH", "Kỹ sư giám sát", 0.4],
-    ["nv.ha", "Đặng Thu Hà", "STAFF", "DEPARTMENT", "PKTOAN", "Kế toán công trình", 0.3],
-    ["nv.khoa", "Trịnh Đăng Khoa", "STAFF", "DEPARTMENT", "PVT", "Nhân viên vật tư", 0.45],
-    ["nv.linh", "Mai Phương Linh", "STAFF", "OWN", "PDA", "Kỹ sư dự án", 0.2],
+    ["nv.ha", "Đặng Thu Hà", "STAFF", "DEPARTMENT", "KTOAN", "Kế toán công trình", 0.3],
+    ["nv.khoa", "Trịnh Đăng Khoa", "STAFF", "DEPARTMENT", "VT", "Nhân viên vật tư", 0.45],
+    ["nv.linh", "Mai Phương Linh", "STAFF", "OWN", "DA", "Kỹ sư dự án", 0.2],
     ["xem", "Phan Thanh Tùng", "VIEWER", "PROJECT", "BGD", "Thư ký BGĐ", 0],
   ];
   const errRate: Record<string, number> = {};
