@@ -12,7 +12,10 @@ import { useMe } from "@/components/AppShell";
 type Any = any;
 type FieldDef = { key: string; label: string; type?: "text" | "number" | "select" | "bool" | "color" | "date" | "textarea" | "tags" | "multi"; required?: boolean; options?: (lk: Any) => { value: string; label: string }[]; hint?: string; full?: boolean };
 type Col = { label: string; render: (r: Any) => ReactNode };
-type Def = { label: string; desc: string; fields: FieldDef[]; cols: Col[]; defaults?: Record<string, unknown> };
+/** tabs: lọc danh sách theo một trường (vd phân loại CĐT / NCC / Thầu phụ) */
+type Def = { label: string; desc: string; fields: FieldDef[]; cols: Col[]; defaults?: Record<string, unknown>; tabs?: { key: string; options: { value: string; label: string }[] } };
+
+const PARTNER_KINDS = [{ value: "INVESTOR", label: "Chủ đầu tư" }, { value: "SUPPLIER", label: "Nhà cung cấp" }, { value: "SUBCONTRACTOR", label: "Thầu phụ" }];
 
 const activeCol: Col = { label: "Trạng thái", render: (r) => (r.active ? <Badge tone="green">Đang dùng</Badge> : <Badge tone="gray">Vô hiệu</Badge>) };
 /** Người thêm mục (5 danh mục được ủy quyền) */
@@ -24,7 +27,7 @@ export const DEFS: Record<string, Def> = {
     label: "Công trình / dự án", desc: "Danh sách công trình, dự án mà hồ sơ trình ký thuộc về",
     fields: [
       { key: "code", label: "Mã công trình", required: true }, { key: "name", label: "Tên công trình", required: true, full: true },
-      { key: "investor", label: "Chủ đầu tư", hint: "Tự điền vào phiếu trình ký khi chọn dự án" }, { key: "location", label: "Địa điểm" }, { key: "startDate", label: "Ngày khởi công", type: "date" },
+      { key: "investorId", label: "Chủ đầu tư", type: "select", options: (lk) => lk.contractors.filter((c: Any) => c.kind === "INVESTOR").map((c: Any) => ({ value: c.id, label: c.name })), hint: "Chọn từ tab CĐT / NCC / thầu phụ (phân loại Chủ đầu tư). Tự điền vào phiếu trình ký khi chọn dự án" }, { key: "location", label: "Địa điểm" }, { key: "startDate", label: "Ngày khởi công", type: "date" },
       { key: "endDate", label: "Ngày hoàn thành dự kiến", type: "date" },
       { key: "partnerIds", label: "Chủ đầu tư / NCC / thầu phụ của dự án", type: "multi", full: true, options: (lk) => lk.contractors.map((c: Any) => ({ value: c.id, label: c.name })), hint: "Phiếu trình ký của dự án chỉ chọn đối tác trong danh sách này" },
       { key: "description", label: "Mô tả", type: "textarea", full: true }, { key: "active", label: "Đang sử dụng", type: "bool" },
@@ -54,8 +57,10 @@ export const DEFS: Record<string, Def> = {
   },
   contractors: {
     label: "CĐT / NCC / thầu phụ", desc: "Chủ đầu tư, nhà cung cấp, thầu phụ. Gắn vào dự án tại tab Công trình / dự án",
-    fields: [{ key: "code", label: "Mã", required: true }, { key: "name", label: "Tên đơn vị", required: true, full: true }, { key: "taxCode", label: "Mã số thuế" }, { key: "contact", label: "Liên hệ" }, { key: "active", label: "Đang sử dụng", type: "bool" }],
-    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Tên đơn vị", render: (r) => r.name }, { label: "MST", render: (r) => r.taxCode }, { label: "Liên hệ", render: (r) => r.contact }, usage("documents", "Số HS"), createdByCol, activeCol],
+    fields: [{ key: "kind", label: "Phân loại", type: "select", required: true, options: () => PARTNER_KINDS }, { key: "code", label: "Mã", required: true }, { key: "name", label: "Tên đơn vị", required: true, full: true }, { key: "taxCode", label: "Mã số thuế" }, { key: "contact", label: "Liên hệ" }, { key: "active", label: "Đang sử dụng", type: "bool" }],
+    defaults: { kind: "SUPPLIER" },
+    tabs: { key: "kind", options: PARTNER_KINDS },
+    cols: [{ label: "Mã", render: (r) => <b>{r.code}</b> }, { label: "Tên đơn vị", render: (r) => r.name }, { label: "Phân loại", render: (r) => PARTNER_KINDS.find((k) => k.value === r.kind)?.label }, { label: "MST", render: (r) => r.taxCode }, { label: "Liên hệ", render: (r) => r.contact }, usage("documents", "Số HS"), createdByCol, activeCol],
   },
   errorCategories: {
     label: "Nhóm lỗi", desc: "Nhóm lỗi dùng để phân loại nguyên nhân trả hồ sơ",
@@ -103,12 +108,12 @@ export const DEFS: Record<string, Def> = {
   },
 };
 
-function CatalogEditor({ entity, row, onClose, onSaved }: { entity: string; row: Any | null; onClose: () => void; onSaved: () => void }) {
+function CatalogEditor({ entity, row, initial, onClose, onSaved }: { entity: string; row: Any | null; initial?: Record<string, unknown>; onClose: () => void; onSaved: () => void }) {
   const def = DEFS[entity];
   const toast = useToast();
   const { data: lk } = useLookups();
   const [v, setV] = useState<Record<string, Any>>(() => {
-    const base: Record<string, Any> = { active: true, ...(def.defaults ?? {}) };
+    const base: Record<string, Any> = { active: true, ...(def.defaults ?? {}), ...(initial ?? {}) };
     if (!row) return base;
     const x: Record<string, Any> = { ...base };
     for (const f of def.fields) x[f.key] = f.type === "date" ? toInputDate(row[f.key]) : row[f.key] ?? (f.type === "bool" ? false : "");
@@ -186,9 +191,11 @@ export function CatalogTable({ entity, canEdit }: { entity: string; canEdit: boo
   const { confirm, dialog } = useConfirm();
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<Any | null | false>(false);
-  const { data, error, mutate, isLoading } = useApi<Any[]>(`/api/catalogs/${entity}${q ? `?q=${encodeURIComponent(q)}` : ""}`);
-  const { mutate: mutLk } = useLookups();
+  const [tab, setTab] = useState("");
   const def = DEFS[entity];
+  const qs = new URLSearchParams({ ...(q ? { q } : {}), ...(def.tabs && tab ? { [def.tabs.key]: tab } : {}) }).toString();
+  const { data, error, mutate, isLoading } = useApi<Any[]>(`/api/catalogs/${entity}${qs ? `?${qs}` : ""}`);
+  const { mutate: mutLk } = useLookups();
   const refresh = () => { mutate(); mutLk(); };
 
   const toggle = async (r: Any) => {
@@ -227,6 +234,13 @@ export function CatalogTable({ entity, canEdit }: { entity: string; canEdit: boo
           </>
         }
       >
+        {def.tabs && (
+          <div className="flex flex-wrap gap-1 border-b border-slate-200 px-4 py-2">
+            {[{ value: "", label: "Tất cả" }, ...def.tabs.options].map((o) => (
+              <button key={o.value} className={`rounded-md px-3 py-1 text-sm ${tab === o.value ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"}`} onClick={() => setTab(o.value)}>{o.label}</button>
+            ))}
+          </div>
+        )}
         <ErrorBox error={error} />
         {isLoading && !data ? <Spinner /> : (
           <div className="scroll-thin overflow-x-auto">
@@ -253,7 +267,7 @@ export function CatalogTable({ entity, canEdit }: { entity: string; canEdit: boo
           </div>
         )}
       </Card>
-      {editing !== false && <CatalogEditor entity={entity} row={editing} onClose={() => setEditing(false)} onSaved={refresh} />}
+      {editing !== false && <CatalogEditor entity={entity} row={editing} initial={def.tabs && tab ? { [def.tabs.key]: tab } : undefined} onClose={() => setEditing(false)} onSaved={refresh} />}
       {dialog}
     </>
   );

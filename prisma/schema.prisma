@@ -76,6 +76,12 @@ enum ActivityType {
   ATTACH
 }
 
+enum PartnerKind {
+  INVESTOR // Chủ đầu tư
+  SUPPLIER // Nhà cung cấp
+  SUBCONTRACTOR // Thầu phụ
+}
+
 enum CustomFieldType {
   TEXT
   NUMBER
@@ -183,7 +189,10 @@ model Project {
   id          String    @id @default(cuid())
   code        String    @unique
   name        String
-  investor    String? // chủ đầu tư
+  investor    String? // tên chủ đầu tư (tự điền theo investorId)
+  /// Chủ đầu tư: chọn từ danh mục CĐT/NCC/Thầu phụ (loại Chủ đầu tư)
+  investorId  String?
+  investorRef Contractor? @relation("ProjectInvestor", fields: [investorId], references: [id], onDelete: SetNull)
   location    String?
   startDate   DateTime?
   endDate     DateTime?
@@ -226,12 +235,15 @@ model Contractor {
   name      String
   taxCode   String?
   contact   String?
+  /// Phân loại: Chủ đầu tư / Nhà cung cấp / Thầu phụ
+  kind      PartnerKind @default(SUPPLIER)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  documents Document[]
-  projects  ProjectPartner[]
+  documents  Document[]
+  projects   ProjectPartner[]
+  investorOf Project[] @relation("ProjectInvestor")
 }
 
 /// Quy trình xử lý (danh mục) - gồm các bước có thời gian tiêu chuẩn

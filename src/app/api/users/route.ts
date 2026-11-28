@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { handler, parseBody, badRequest, clientIp } from "@/server/api";
 import { audit } from "@/server/audit";
-import { approvalFlags, checkAdminDepartment, resolveDivision, userSchema, userSelect } from "@/server/users";
+import { approvalFlags, checkAdminDepartment, resolveDivision, resolveRoleDepartment, userSchema, userSelect } from "@/server/users";
 
 export const GET = handler(
   async () => prisma.user.findMany({ where: { deletedAt: null }, select: userSelect, orderBy: [{ active: "desc" }, { fullName: "asc" }] }),
@@ -16,8 +16,9 @@ export const POST = handler(
     if (!body.password) throw badRequest("Nhập mật khẩu cho tài khoản mới");
     const { password, approvalRole, ...data } = body;
     if (await prisma.user.findUnique({ where: { username: data.username } })) throw badRequest("Tên đăng nhập đã tồn tại");
+    data.departmentId = await resolveRoleDepartment(approvalRole, data.departmentId);
     await checkAdminDepartment(data.username, data.departmentId);
-    data.divisionId = await resolveDivision(body);
+    data.divisionId = await resolveDivision({ ...body, departmentId: data.departmentId });
     const created = await prisma.user.create({
       data: { ...data, ...approvalFlags(approvalRole), role: approvalRole === "ADMIN" ? "ADMIN" : "STAFF", dataScope: "DEPARTMENT", passwordHash: await bcrypt.hash(password, 10) },
       select: userSelect,

@@ -19,9 +19,9 @@ const ROLE_DESC: Record<string, string> = {
   VIEWER: "Chỉ xem dữ liệu được cấp quyền, không chỉnh sửa",
 };
 
-const APPROVAL_ROLES = [{ value: "STAFF", label: "Nhân viên" }, { value: "RELATED", label: "Phụ trách liên quan" }, { value: "DEPT_MANAGER", label: "Quản lý phòng ban" }, { value: "ADMIN", label: "Quản trị viên" }];
+const APPROVAL_ROLES = [{ value: "STAFF", label: "Nhân viên" }, { value: "RELATED", label: "Phụ trách liên quan" }, { value: "DEPT_MANAGER", label: "Quản lý phòng ban" }, { value: "BKS", label: "Ban kiểm soát" }, { value: "ADMIN", label: "Quản trị viên" }];
 const GRANT_OPTIONS = Object.entries(DELEGABLE_CATALOGS);
-const approvalRoleOf = (u: Any) => (u.role === "ADMIN" ? "ADMIN" : u.isDeptManager ? "DEPT_MANAGER" : u.isRelatedPerson ? "RELATED" : "STAFF");
+const approvalRoleOf = (u: Any) => (u.role === "ADMIN" ? "ADMIN" : u.department?.code === "BKS" ? "BKS" : u.isDeptManager ? "DEPT_MANAGER" : u.isRelatedPerson ? "RELATED" : "STAFF");
 
 function UserEditor({ row, onClose, onSaved }: { row: Any | null; onClose: () => void; onSaved: () => void }) {
   const toast = useToast();
@@ -35,7 +35,7 @@ function UserEditor({ row, onClose, onSaved }: { row: Any | null; onClose: () =>
     setBusy(true);
     setErr(null);
     try {
-      const body = { username: v.username, fullName: v.fullName, email: v.email, phone: v.phone, position: v.position, departmentId: v.departmentId, divisionId: ["DEPT_MANAGER", "ADMIN"].includes(v.approvalRole) ? null : v.divisionId, approvalRole: v.approvalRole, catalogGrants: v.approvalRole === "ADMIN" || !v.delegate ? [] : v.catalogGrants, active: v.active, password: v.password };
+      const body = { username: v.username, fullName: v.fullName, email: v.email, phone: v.phone, position: v.position, departmentId: v.departmentId, divisionId: ["DEPT_MANAGER", "BKS", "ADMIN"].includes(v.approvalRole) ? null : v.divisionId, approvalRole: v.approvalRole, catalogGrants: v.approvalRole === "ADMIN" || !v.delegate ? [] : v.catalogGrants, active: v.active, password: v.password };
       await api(row ? `/api/users/${row.id}` : "/api/users", { method: row ? "PATCH" : "POST", json: body });
       toast("success", row ? "Đã lưu người dùng" : "Đã thêm người dùng");
       onSaved();
@@ -48,15 +48,19 @@ function UserEditor({ row, onClose, onSaved }: { row: Any | null; onClose: () =>
   };
   const set = (k: string, val: unknown) => setV((x: Any) => ({ ...x, [k]: val }));
   const divisions = lk?.departments.find((d) => d.id === v.departmentId)?.divisions ?? [];
+  // Vai trò Ban kiểm soát: phòng ban khóa là Ban kiểm soát (mã BKS); phòng BKS chỉ dành cho vai trò này
+  const bksDept = lk?.departments.find((d) => d.code === "BKS");
+  const isBks = v.approvalRole === "BKS";
+  const setRole = (r: string) => setV((x: Any) => ({ ...x, approvalRole: r, ...(r === "BKS" ? { departmentId: bksDept?.id ?? "", divisionId: "" } : x.departmentId === bksDept?.id ? { departmentId: "", divisionId: "" } : {}) }));
   return (
     <Modal open onClose={onClose} title={row ? `Sửa người dùng: ${row.fullName}` : "Thêm người dùng"} footer={<><Button variant="secondary" onClick={onClose}>Hủy</Button><Button loading={busy} onClick={save}>Lưu</Button></>}>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Tên đăng nhập" required><input className="input" value={v.username} onChange={(e) => set("username", e.target.value)} disabled={!!row} /></Field>
         <Field label="Họ tên" required><input className="input" value={v.fullName} onChange={(e) => set("fullName", e.target.value)} /></Field>
         <Field label="Chức danh"><input className="input" value={v.position} onChange={(e) => set("position", e.target.value)} /></Field>
-        <Field label="Phòng ban" required hint={row?.username === "admin" ? "Phòng ban của tài khoản admin được khóa là Admin" : "Thành viên Ban kiểm soát: chọn phòng ban có mã BKS"}><Select value={v.departmentId} disabled={row?.username === "admin"} onChange={(e) => setV((x: Any) => ({ ...x, departmentId: e.target.value, divisionId: "" }))} placeholder="— Chọn —" options={(lk?.departments ?? []).filter((d) => row?.username === "admin" || d.code !== "ADMIN").map((d) => ({ value: d.id, label: d.name }))} /></Field>
-        <Field label="Vai trò" required hint={v.approvalRole === "ADMIN" ? ROLE_DESC.ADMIN : "Phụ trách liên quan / Quản lý phòng ban dùng cho bước duyệt hồ sơ"}><Select value={v.approvalRole} disabled={row?.id === me.id && row?.role === "ADMIN"} onChange={(e) => set("approvalRole", e.target.value)} options={APPROVAL_ROLES} /></Field>
-        {divisions.length > 0 && !["DEPT_MANAGER", "ADMIN"].includes(v.approvalRole) && (
+        <Field label="Phòng ban" required hint={row?.username === "admin" ? "Phòng ban của tài khoản admin được khóa là Admin" : isBks ? "Vai trò Ban kiểm soát: phòng ban được khóa là Ban kiểm soát" : undefined}><Select value={v.departmentId} disabled={row?.username === "admin" || isBks} onChange={(e) => setV((x: Any) => ({ ...x, departmentId: e.target.value, divisionId: "" }))} placeholder="— Chọn —" options={(lk?.departments ?? []).filter((d) => row?.username === "admin" || (d.code !== "ADMIN" && (isBks || d.code !== "BKS"))).map((d) => ({ value: d.id, label: d.name }))} /></Field>
+        <Field label="Vai trò" required hint={v.approvalRole === "ADMIN" ? ROLE_DESC.ADMIN : "Phụ trách liên quan / Quản lý phòng ban dùng cho bước duyệt hồ sơ"}><Select value={v.approvalRole} disabled={row?.id === me.id && row?.role === "ADMIN"} onChange={(e) => setRole(e.target.value)} options={APPROVAL_ROLES} /></Field>
+        {divisions.length > 0 && !["DEPT_MANAGER", "BKS", "ADMIN"].includes(v.approvalRole) && (
           <Field label="Khối" required hint="Phụ trách liên quan phụ trách khối này"><Select value={v.divisionId} onChange={(e) => set("divisionId", e.target.value)} placeholder="— Chọn khối —" options={divisions.map((d) => ({ value: d.id, label: d.name }))} /></Field>
         )}
         <Field label="Email"><input className="input" value={v.email} onChange={(e) => set("email", e.target.value)} /></Field>

@@ -112,7 +112,7 @@ export default function TrackingPage() {
                         {r.canConfirm && <Button size="sm" onClick={() => setAct({ action: "advance", doc })}>{STAGE_CONFIRM_LABEL[r.status.code]}</Button>}
                         {r.canReturn && <Button size="sm" variant="danger" className="ml-1" icon={<Undo2 className="h-3.5 w-3.5" />} onClick={() => setAct({ action: "return", doc })}>Trả về</Button>}
                         {r.canProcess && returned && r.latestForm && <Link href={`/forms/${r.latestForm.id}`}><Button size="sm" variant="warning" icon={<Printer className="h-3.5 w-3.5" />}>In ký lại</Button></Link>}
-                        {r.canProcess && r.status.category === "DRAFT" && (r.latestForm
+                        {r.canProcess && me.approvalRole !== "BKS" && r.status.category === "DRAFT" && (r.latestForm
                           ? <Link href={`/forms/${r.latestForm.id}`}><Button size="sm" variant="secondary" icon={<Printer className="h-3.5 w-3.5" />}>In phiếu</Button></Link>
                           : <Link href={`/forms/new?documentId=${r.id}`}><Button size="sm" variant="secondary" icon={<Printer className="h-3.5 w-3.5" />}>Lập phiếu</Button></Link>)}
                       </td>

@@ -7,8 +7,8 @@ export const GET = handler(async ({ user }) => {
     prisma.project.findMany({ where: { active: true }, select: { id: true, code: true, name: true, investor: true, partners: { select: { contractorId: true } } }, orderBy: { code: "asc" } }),
     prisma.documentType.findMany({ where: { active: true }, select: { id: true, code: true, name: true }, orderBy: { name: "asc" } }),
     prisma.department.findMany({ where: { active: true }, select: { id: true, code: true, name: true, divisions: { where: { active: true }, select: { id: true, name: true }, orderBy: { code: "asc" } } }, orderBy: { name: "asc" } }),
-    prisma.user.findMany({ where: { active: true }, select: { id: true, fullName: true, departmentId: true, position: true, role: true }, orderBy: { fullName: "asc" } }),
-    prisma.contractor.findMany({ where: { active: true }, select: { id: true, code: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.user.findMany({ where: { active: true }, select: { id: true, fullName: true, departmentId: true, divisionId: true, position: true, role: true, isRelatedPerson: true, isDeptManager: true }, orderBy: { fullName: "asc" } }),
+    prisma.contractor.findMany({ where: { active: true }, select: { id: true, code: true, name: true, kind: true }, orderBy: { name: "asc" } }),
     prisma.documentStatus.findMany({ where: { active: true }, select: { id: true, code: true, name: true, color: true, category: true }, orderBy: { order: "asc" } }),
     prisma.errorCategory.findMany({
       where: { active: true },

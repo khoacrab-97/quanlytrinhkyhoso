@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { CurrentUser } from "./session";
+import { isPlainStaff } from "@/lib/permissions";
 
 /**
  * Điều kiện Prisma giới hạn hồ sơ theo phạm vi dữ liệu của người dùng.
@@ -7,7 +8,14 @@ import type { CurrentUser } from "./session";
  */
 export function documentScopeWhere(user: CurrentUser): Prisma.DocumentWhereInput {
   const base: Prisma.DocumentWhereInput = { deletedAt: null };
-  if (user.role === "ADMIN" || user.dataScope === "ALL" || user.isBks) return base;
+  if (user.role === "ADMIN" || user.isBks) return base;
+  // Nhân viên chỉ thấy hồ sơ của phòng ban mình (và hồ sơ do chính mình lập / tạo)
+  if (isPlainStaff(user)) {
+    const mine: Prisma.DocumentWhereInput[] = [{ preparerId: user.id }, { createdById: user.id }];
+    if (user.departmentId) mine.push({ departmentId: user.departmentId });
+    return { ...base, OR: mine };
+  }
+  if (user.dataScope === "ALL") return base;
 
   const own: Prisma.DocumentWhereInput[] = [
     { preparerId: user.id },

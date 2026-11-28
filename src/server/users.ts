@@ -2,6 +2,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { badRequest } from "@/server/api";
 import { DELEGABLE_CATALOGS, type DelegableCatalog } from "@/lib/constants";
+import { BKS_DEPARTMENT_CODE } from "@/server/approval";
+
+export type ApprovalRole = "STAFF" | "RELATED" | "DEPT_MANAGER" | "BKS" | "ADMIN";
 
 export const passwordSchema = z
   .string()
@@ -18,8 +21,8 @@ export const userSchema = z.object({
   position: z.string().trim().max(100).optional().nullable().transform((v) => v || null),
   departmentId: z.string({ error: "Chọn phòng ban" }).min(1, "Chọn phòng ban"),
   divisionId: z.string().optional().nullable().transform((v) => v || null),
-  /** Vai trò: Nhân viên / Phụ trách liên quan / Quản lý phòng ban / Quản trị viên (toàn quyền hệ thống) */
-  approvalRole: z.enum(["STAFF", "RELATED", "DEPT_MANAGER", "ADMIN"]).default("STAFF"),
+  /** Vai trò: Nhân viên / Phụ trách liên quan / Quản lý phòng ban / Ban kiểm soát / Quản trị viên (toàn quyền hệ thống) */
+  approvalRole: z.enum(["STAFF", "RELATED", "DEPT_MANAGER", "BKS", "ADMIN"]).default("STAFF"),
   /** Danh mục được ủy quyền thêm mới */
   catalogGrants: z.array(z.enum(Object.keys(DELEGABLE_CATALOGS) as [DelegableCatalog, ...DelegableCatalog[]])).default([]),
   active: z.boolean().default(true),
@@ -37,8 +40,22 @@ export async function checkAdminDepartment(username: string, departmentId: strin
   if (username !== ADMIN_USERNAME && isAdminDept) throw badRequest("Phòng ban Admin chỉ dành cho tài khoản admin");
 }
 
+/**
+ * Vai trò Ban kiểm soát gắn với phòng ban mã BKS: chọn vai trò này thì phòng ban tự đặt là Ban kiểm soát (khóa),
+ * và phòng ban Ban kiểm soát chỉ dành cho vai trò này. Trả về departmentId sẽ lưu.
+ */
+export async function resolveRoleDepartment(approvalRole: ApprovalRole, departmentId: string) {
+  const bks = await prisma.department.findUnique({ where: { code: BKS_DEPARTMENT_CODE }, select: { id: true } });
+  if (approvalRole === "BKS") {
+    if (!bks) throw badRequest("Chưa có phòng ban Ban kiểm soát (mã BKS) trong danh mục Bộ phận");
+    return bks.id;
+  }
+  if (bks && departmentId === bks.id) throw badRequest("Phòng ban Ban kiểm soát chỉ dành cho vai trò Ban kiểm soát");
+  return departmentId;
+}
+
 /** Vai trò trình ký -> cờ lưu trong DB (mỗi người một vai trò) */
-export function approvalFlags(r: "STAFF" | "RELATED" | "DEPT_MANAGER" | "ADMIN") {
+export function approvalFlags(r: ApprovalRole) {
   return { isRelatedPerson: r === "RELATED", isDeptManager: r === "DEPT_MANAGER" };
 }
 
@@ -49,10 +66,10 @@ export function approvalFlags(r: "STAFF" | "RELATED" | "DEPT_MANAGER" | "ADMIN")
  *  - Nhân viên / Phụ trách liên quan: bắt buộc chọn khối nếu phòng ban có khối; khối phải thuộc phòng ban.
  */
 export async function resolveDivision(
-  body: { departmentId: string; divisionId: string | null; approvalRole: "STAFF" | "RELATED" | "DEPT_MANAGER" | "ADMIN" },
+  body: { departmentId: string; divisionId: string | null; approvalRole: ApprovalRole },
   userId?: string,
 ) {
-  if (body.approvalRole === "ADMIN") return null;
+  if (body.approvalRole === "ADMIN" || body.approvalRole === "BKS") return null;
   if (body.approvalRole === "DEPT_MANAGER") {
     const other = await prisma.user.findFirst({
       where: { departmentId: body.departmentId, isDeptManager: true, deletedAt: null, ...(userId ? { id: { not: userId } } : {}) },
@@ -77,7 +94,7 @@ export const userSelect = {
   id: true, username: true, fullName: true, email: true, phone: true, position: true, role: true, dataScope: true,
   departmentId: true, active: true, lastLoginAt: true, createdAt: true, isRelatedPerson: true, isDeptManager: true, catalogGrants: true,
   divisionId: true,
-  department: { select: { id: true, name: true } },
+  department: { select: { id: true, name: true, code: true } },
   division: { select: { id: true, name: true } },
   projects: { select: { projectId: true, project: { select: { code: true } } } },
   _count: { select: { preparedDocuments: true } },

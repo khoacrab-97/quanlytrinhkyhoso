@@ -38,6 +38,7 @@ export function SigningSheet({ c, resubmitNo, reason, code, locked, footer }: { 
   return (
     <div className="print-sheet" data-locked={locked ? "true" : "false"} style={{ width: "198mm", fontFamily: "'Times New Roman', Times, serif", fontSize: "10pt", color: "#000", background: "#fff" }}>
       <div className="sheet-body">
+        {code && <div style={{ fontSize: "9pt", fontWeight: 700, marginBottom: "1mm" }}>Mã phiếu: {code}</div>}
         <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: "21.3%" }} />
@@ -86,7 +87,7 @@ export function SigningSheet({ c, resubmitNo, reason, code, locked, footer }: { 
               <Cell center />
             </tr>
             <tr>
-              <Cell h={16} center valign="bottom">{c.preparerName || DOTS}</Cell>
+              <Cell h={32} center valign="bottom">{c.preparerName || DOTS}</Cell>
               <Cell center valign="bottom">{c.relatedPersonName || DOTS}</Cell>
               <Cell center valign="bottom">{c.managerName || DOTS}</Cell>
               <Cell center />
@@ -98,9 +99,9 @@ export function SigningSheet({ c, resubmitNo, reason, code, locked, footer }: { 
             </tr>
           </tbody>
         </table>
-        {(code || footer) && (
+        {footer && (
           <div style={{ fontSize: "7pt", color: "#555", textAlign: "right", marginTop: "1mm" }}>
-            {[code, footer].filter(Boolean).join(" · ")}
+            {footer}
           </div>
         )}
       </div>

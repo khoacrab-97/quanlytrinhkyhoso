@@ -15,6 +15,7 @@ import { createDocument } from "./documents";
 import { canModifyDocument, documentScopeWhere } from "./scope";
 import { performAction } from "./workflow";
 import { NO_WITHDRAW_STAGES, noWithdrawMessage } from "@/lib/constants";
+import { BKS_DEPARTMENT_CODE } from "./approval";
 import type { CurrentUser } from "./session";
 
 const txt = (max: number) => z.string().trim().max(max).optional().nullable().transform((v) => v || "");
@@ -45,6 +46,8 @@ export const createSchema = z.object({
       departmentId: z.string().min(1, "Chọn phòng ban"),
       contractorId: optId,
       recipientId: optId,
+      /** Tạo giúp hộ: người lập là người được tạo hộ (bỏ trống = tạo cho cá nhân) */
+      preparerId: optId,
       docNumber: z.string().trim().max(100).optional().nullable().transform((v) => v || null),
     })
     .optional()
@@ -86,12 +89,23 @@ async function loadDocForForm(user: CurrentUser, documentId: string) {
 
 /** Tạo phiếu (đang soạn). Số lần trình lại = số lần hồ sơ đã được trình. */
 export async function createForm(input: z.infer<typeof createSchema>, user: CurrentUser, ip?: string | null) {
+  if (user.approvalRole === "BKS") throw new AppErrorLite(403, "Ban kiểm soát không tham gia lập phiếu trình ký");
   let documentId = input.documentId;
   if (!documentId) {
     if (!input.newDocument) throw new AppErrorLite(400, "Chọn hồ sơ có sẵn hoặc nhập thông tin để tạo hồ sơ mới");
     const nd = input.newDocument;
     // Phòng ban trình ký = phòng ban của người lập; chỉ Quản trị viên được chọn phòng ban khác
-    const departmentId = user.role === "ADMIN" || !user.departmentId ? nd.departmentId : user.departmentId;
+    let departmentId = user.role === "ADMIN" || !user.departmentId ? nd.departmentId : user.departmentId;
+    let preparerId = user.id;
+    // Tạo giúp hộ: chỉ người cùng phòng ban (Quản trị viên chọn được mọi người); phòng ban theo người được tạo hộ
+    if (nd.preparerId && nd.preparerId !== user.id) {
+      const p = await prisma.user.findFirst({ where: { id: nd.preparerId, active: true, deletedAt: null }, select: { id: true, departmentId: true, department: { select: { code: true } } } });
+      if (!p?.departmentId) throw new AppErrorLite(400, "Người được tạo hộ không tồn tại hoặc chưa có phòng ban");
+      if (user.role !== "ADMIN" && p.departmentId !== user.departmentId) throw new AppErrorLite(403, "Chỉ được tạo hộ người cùng phòng ban");
+      if (p.department?.code === BKS_DEPARTMENT_CODE) throw new AppErrorLite(400, "Ban kiểm soát không tham gia lập phiếu trình ký");
+      preparerId = p.id;
+      departmentId = p.departmentId;
+    }
     if (nd.contractorId) {
       const partners = await prisma.projectPartner.findMany({ where: { projectId: nd.projectId }, select: { contractorId: true } });
       if (partners.length && !partners.some((x) => x.contractorId === nd.contractorId)) {
@@ -101,7 +115,7 @@ export async function createForm(input: z.infer<typeof createSchema>, user: Curr
     const doc = await createDocument(
       {
         docNumber: nd.docNumber, title: input.content.docTitle, typeId: nd.typeId, projectId: nd.projectId, contractorId: nd.contractorId,
-        departmentId, preparerId: user.id, submitterId: user.id, recipientId: nd.recipientId,
+        departmentId, preparerId, submitterId: preparerId, recipientId: nd.recipientId,
         preparedDate: new Date(), priority: 2, notes: null, customFields: null, readyToSubmit: true,
       },
       user,

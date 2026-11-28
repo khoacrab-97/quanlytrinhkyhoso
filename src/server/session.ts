@@ -4,6 +4,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/lib/token";
 import { BKS_DEPARTMENT_CODE } from "./approval";
+import { approvalRoleOf, type ApprovalRoleName } from "@/lib/permissions";
 
 export type CurrentUser = {
   id: string;
@@ -17,6 +18,8 @@ export type CurrentUser = {
   projectIds: string[];
   /** Thành viên Ban kiểm soát (phòng ban mã BKS): xem và xác nhận hồ sơ của mọi phòng ban */
   isBks: boolean;
+  /** Vai trò trình ký (ô Vai trò khi tạo người dùng) */
+  approvalRole: ApprovalRoleName;
   /** Danh mục được ủy quyền thêm mới */
   catalogGrants: string[];
   preferences: Record<string, unknown>;
@@ -43,6 +46,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     position: u.position,
     projectIds: u.projects.map((p) => p.projectId),
     isBks: u.department?.code === BKS_DEPARTMENT_CODE,
+    approvalRole: approvalRoleOf({ role: u.role, isBks: u.department?.code === BKS_DEPARTMENT_CODE, isDeptManager: u.isDeptManager, isRelatedPerson: u.isRelatedPerson }),
     catalogGrants: u.catalogGrants,
     preferences: (u.preferences as Record<string, unknown>) ?? {},
   };

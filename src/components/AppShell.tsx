@@ -8,16 +8,17 @@ import {
 } from "lucide-react";
 import { api, useApi } from "@/lib/client";
 import { fmtDateTime, toInputDate } from "@/lib/dates";
-import { can, ROLE_LABELS, type Permission, type RoleName } from "@/lib/permissions";
+import { can, isPlainStaff, ROLE_LABELS, type ApprovalRoleName, type Permission, type RoleName } from "@/lib/permissions";
 import { Button, cx, Field, Modal, ToastProvider, useToast } from "./ui";
 
-export type ShellUser = { id: string; fullName: string; role: RoleName; departmentName: string | null; position: string | null; dataScope: string; preferences: Record<string, unknown>; catalogGrants: string[] };
+export type ShellUser = { id: string; fullName: string; role: RoleName; approvalRole: ApprovalRoleName; departmentName: string | null; position: string | null; dataScope: string; preferences: Record<string, unknown>; catalogGrants: string[] };
 
 const UserCtx = createContext<ShellUser | null>(null);
 export const useMe = () => useContext(UserCtx)!;
 export const useCan = () => {
   const me = useMe();
-  return (p: Permission) => can(me.role, p);
+  // Ban kiểm soát không lập hồ sơ / phiếu trình ký
+  return (p: Permission) => can(me.role, p) && !(p === "document.create" && me.approvalRole === "BKS");
 };
 
 // ---------------------------------------------------------------- Bộ lọc thời gian toàn cục
@@ -193,9 +194,17 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
     router.push("/login");
     router.refresh();
   };
+  // Nhân viên: chỉ Phiếu trình ký, Theo dõi, Quản lý hồ sơ, BKS trả về, Quản lý lỗi.
+  // Ban kiểm soát không tham gia lập Phiếu trình ký.
+  const hidden = new Set<string>(isPlainStaff(user) ? ["/", "/reports"] : user.approvalRole === "BKS" ? ["/forms"] : []);
   // Danh mục: Quản trị viên, hoặc người được ủy quyền thêm mới ít nhất một danh mục
-  const nav = NAV.filter((n) => !n.perm || can(user.role, n.perm) || (n.href === "/catalogs" && user.catalogGrants.length > 0));
+  const nav = NAV.filter((n) => !hidden.has(n.href) && (!n.perm || can(user.role, n.perm) || (n.href === "/catalogs" && user.catalogGrants.length > 0)));
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  // Mở thẳng trang bị ẩn (vd sau đăng nhập vào Tổng quan) -> chuyển sang mục đầu tiên được thấy
+  const blocked = (pathname === "/" && hidden.has("/")) || (hidden.has("/reports") && pathname.startsWith("/reports")) || (hidden.has("/forms") && (pathname === "/forms" || pathname === "/forms/new"));
+  useEffect(() => {
+    if (blocked && nav[0]) router.replace(nav[0].href);
+  }, [blocked, nav, router]);
 
   const sidebar = (
     <div className="flex h-full flex-col bg-brand-900 text-slate-300">
@@ -222,7 +231,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
         ))}
       </nav>
       <div className="border-t border-white/10 px-5 py-3 text-[11px] text-slate-500">
-        <ClipboardList className="mr-1 inline h-3.5 w-3.5" /> Phạm vi dữ liệu: {user.role === "ADMIN" ? "Toàn hệ thống" : { ALL: "Toàn hệ thống", DEPARTMENT: "Bộ phận", PROJECT: "Công trình được giao", OWN: "Cá nhân" }[user.dataScope]}
+        <ClipboardList className="mr-1 inline h-3.5 w-3.5" /> Phạm vi dữ liệu: {user.role === "ADMIN" || user.approvalRole === "BKS" ? "Toàn hệ thống" : isPlainStaff(user) ? "Bộ phận" : { ALL: "Toàn hệ thống", DEPARTMENT: "Bộ phận", PROJECT: "Công trình được giao", OWN: "Cá nhân" }[user.dataScope]}
       </div>
     </div>
   );
@@ -272,7 +281,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
                 </div>
               </header>
               <div className="border-b border-slate-200 bg-white px-3 py-1.5 md:hidden"><RangePicker /></div>
-              <main className="min-w-0 flex-1 p-3 md:p-6">{children}</main>
+              <main className="min-w-0 flex-1 p-3 md:p-6">{blocked ? null : children}</main>
             </div>
           </div>
           <PasswordDialog open={pwOpen} onClose={() => setPwOpen(false)} />

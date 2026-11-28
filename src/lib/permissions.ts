@@ -46,6 +46,18 @@ const MATRIX: Record<RoleName, Permission[]> = {
   VIEWER: ["report.view"],
 };
 
+/** Vai trò trình ký: Nhân viên / Phụ trách liên quan / Quản lý phòng ban / Ban kiểm soát / Quản trị viên */
+export type ApprovalRoleName = "STAFF" | "RELATED" | "DEPT_MANAGER" | "BKS" | "ADMIN";
+
+export function approvalRoleOf(u: { role: string; isBks: boolean; isDeptManager: boolean; isRelatedPerson: boolean }): ApprovalRoleName {
+  return u.role === "ADMIN" ? "ADMIN" : u.isBks ? "BKS" : u.isDeptManager ? "DEPT_MANAGER" : u.isRelatedPerson ? "RELATED" : "STAFF";
+}
+
+/** Nhân viên thuần (không có vai trò duyệt, quyền hệ thống Nhân viên): menu rút gọn, chỉ xem hồ sơ phòng mình */
+export function isPlainStaff(u: { role: string; approvalRole: ApprovalRoleName }) {
+  return u.role === "STAFF" && u.approvalRole === "STAFF";
+}
+
 export function can(role: string | undefined | null, perm: Permission) {
   if (!role) return false;
   return MATRIX[role as RoleName]?.includes(perm) ?? false;

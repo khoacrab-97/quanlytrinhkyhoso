@@ -60,8 +60,8 @@ export type Lookups = {
   projects: { id: string; code: string; name: string; investor: string | null; partnerIds: string[] }[];
   types: { id: string; code: string; name: string }[];
   departments: { id: string; code: string; name: string; divisions: { id: string; name: string }[] }[];
-  users: { id: string; fullName: string; departmentId: string | null; position: string | null; role: string }[];
-  contractors: { id: string; code: string; name: string }[];
+  users: { id: string; fullName: string; departmentId: string | null; divisionId: string | null; position: string | null; role: string; isRelatedPerson: boolean; isDeptManager: boolean }[];
+  contractors: { id: string; code: string; name: string; kind: "INVESTOR" | "SUPPLIER" | "SUBCONTRACTOR" }[];
   statuses: { id: string; code: string; name: string; color: string; category: string }[];
   errorCategories: { id: string; code: string; name: string; attributable: boolean; reasons: { id: string; name: string }[] }[];
   customFields: { id: string; key: string; label: string; type: string; options: string[]; required: boolean }[];

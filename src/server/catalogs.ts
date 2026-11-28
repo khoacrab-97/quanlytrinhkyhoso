@@ -38,9 +38,16 @@ export const CATALOGS: Record<string, Cfg> = {
     label: "Công trình / dự án",
     model: () => m(prisma.project),
     schema: z.object({
-      code, name: str(300), investor: optStr(300), location: optStr(300), startDate: optDate, endDate: optDate, description: optStr(2000),
+      code, name: str(300), investorId: optId, location: optStr(300), startDate: optDate, endDate: optDate, description: optStr(2000),
       partnerIds: z.array(z.string().min(1)).default([]), active: z.boolean().default(true),
     }),
+    // Chủ đầu tư phải thuộc danh mục CĐT (loại Chủ đầu tư); lưu kèm tên để hiển thị
+    beforeSave: async (data) => {
+      if (!data.investorId) { data.investor = null; return; }
+      const inv = await prisma.contractor.findUnique({ where: { id: data.investorId as string }, select: { name: true, kind: true } });
+      if (!inv || inv.kind !== "INVESTOR") throw new AppErrorLite(400, "Chủ đầu tư phải chọn trong danh mục CĐT (loại Chủ đầu tư)");
+      data.investor = inv.name;
+    },
     include: { createdBy: { select: { id: true, fullName: true } }, partners: { select: { contractorId: true, contractor: { select: { name: true } } } }, _count: { select: { documents: true, members: true } } },
     toData: ({ partnerIds, ...rest }, isUpdate) => ({
       ...rest,
@@ -89,10 +96,15 @@ export const CATALOGS: Record<string, Cfg> = {
   contractors: {
     label: "Nhà thầu / đơn vị liên quan",
     model: () => m(prisma.contractor),
-    schema: z.object({ code, name: str(300), taxCode: optStr(20), contact: optStr(300), active: z.boolean().default(true) }),
+    schema: z.object({ code, name: str(300), kind: z.enum(["INVESTOR", "SUPPLIER", "SUBCONTRACTOR"], { error: "Chọn phân loại" }), taxCode: optStr(20), contact: optStr(300), active: z.boolean().default(true) }),
     include: { createdBy: { select: { id: true, fullName: true } }, _count: { select: { documents: true } } },
     orderBy: { code: "asc" },
     search: ["code", "name", "taxCode"],
+    filterKeys: ["kind"],
+    // Đổi tên Chủ đầu tư thì cập nhật tên hiển thị ở các công trình
+    beforeSave: async (data, existing) => {
+      if (existing && existing.name !== data.name) await prisma.project.updateMany({ where: { investorId: existing.id as string }, data: { investor: data.name as string } });
+    },
   },
   recipients: {
     label: "Người nhận trình ký",

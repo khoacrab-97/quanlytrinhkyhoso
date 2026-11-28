@@ -16,10 +16,10 @@ const content = {
 
 before(async () => {
   const u = await prisma.user.findUniqueOrThrow({ where: { username: "admin" } });
-  me = { id: u.id, username: u.username, fullName: u.fullName, role: "ADMIN", dataScope: "ALL", departmentId: u.departmentId, departmentName: null, position: null, projectIds: [], preferences: {}, isBks: false, catalogGrants: [] };
+  me = { id: u.id, username: u.username, fullName: u.fullName, role: "ADMIN", dataScope: "ALL", departmentId: u.departmentId, departmentName: null, position: null, projectIds: [], preferences: {}, isBks: false, approvalRole: "ADMIN", catalogGrants: [] };
   // Dự án riêng của file test (các file test chạy song song), xóa sau khi chạy
   const [t, p, d] = await Promise.all([prisma.documentType.findFirstOrThrow(), prisma.project.upsert({ where: { code: "TEST-SF" }, update: {}, create: { code: "TEST-SF", name: "Công trình test phiếu" } }), prisma.department.findFirstOrThrow()]);
-  const f = await createForm({ documentId: null, newDocument: { typeId: t.id, projectId: p.id, departmentId: d.id, contractorId: null, recipientId: null, docNumber: null }, content, reason: null }, me);
+  const f = await createForm({ documentId: null, newDocument: { typeId: t.id, projectId: p.id, departmentId: d.id, contractorId: null, recipientId: null, preparerId: null, docNumber: null }, content, reason: null }, me);
   formId = f.id;
   docId = f.documentId;
   await prisma.document.update({ where: { id: docId }, data: { isSample: true } });
