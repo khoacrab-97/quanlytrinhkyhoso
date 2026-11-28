@@ -662,7 +662,7 @@ enum SigningFormStatus {
 /// Phiếu trình ký. Mỗi lần trình (lần đầu, trình lại lần 1, 2...) là một phiếu riêng (một phiên bản).
 model SigningForm {
   id             String            @id @default(cuid())
-  /// Mã phiếu tự sinh: PTK-YYYY-NNNNN (mỗi phiên bản một mã)
+  /// Mã phiếu tự sinh: Mã phòng-YYYY-MM-NNNN, vd DA-2026-11-0001 (mỗi phiên bản một mã)
   code           String            @unique
   documentId     String
   document       Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)

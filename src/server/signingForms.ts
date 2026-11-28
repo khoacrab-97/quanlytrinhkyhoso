@@ -60,10 +60,19 @@ export async function reprintMinutes() {
   return numSetting(await getSettings(), "form.reprintMinutes", 60);
 }
 
-async function nextFormCode(tx: Prisma.TransactionClient) {
-  const year = new Date().getFullYear();
-  const c = await tx.counter.upsert({ where: { key: `ptk-${year}` }, create: { key: `ptk-${year}`, value: 1 }, update: { value: { increment: 1 } } });
-  return `PTK-${year}-${String(c.value).padStart(5, "0")}`;
+/** Mã phiếu: Mã phòng - Năm - Tháng - 4 số (vd DA-2026-11-0001); số thứ tự đếm riêng theo phòng ban, mỗi tháng bắt đầu lại từ 0001 */
+export function formatFormCode(deptCode: string, at: Date, seq: number) {
+  // Năm/tháng theo giờ Việt Nam (tránh lệch tháng khi máy chủ chạy giờ UTC)
+  const [y, m] = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit" }).format(at).split("-");
+  return `${deptCode}-${y}-${m}-${String(seq).padStart(4, "0")}`;
+}
+
+async function nextFormCode(tx: Prisma.TransactionClient, departmentId: string) {
+  const dept = await tx.department.findUniqueOrThrow({ where: { id: departmentId }, select: { code: true } });
+  const prefix = formatFormCode(dept.code, new Date(), 0).slice(0, -5); // "DA-2026-11"
+  const key = `ptk-${prefix}`;
+  const c = await tx.counter.upsert({ where: { key }, create: { key, value: 1 }, update: { value: { increment: 1 } } });
+  return `${prefix}-${String(c.value).padStart(4, "0")}`;
 }
 
 const CLOSED = ["APPROVED", "COMPLETED", "CANCELLED"];
@@ -132,7 +141,7 @@ export async function createForm(input: z.infer<typeof createSchema>, user: Curr
   const form = await prisma.$transaction(async (tx) =>
     tx.signingForm.create({
       data: {
-        code: await nextFormCode(tx), documentId: doc.id, resubmitNo, resubmitReason: resubmitNo > 0 ? input.reason : null,
+        code: await nextFormCode(tx, doc.departmentId), documentId: doc.id, resubmitNo, resubmitReason: resubmitNo > 0 ? input.reason : null,
         content: input.content, createdById: user.id,
       },
     }),
@@ -289,7 +298,7 @@ export async function resubmitForm(user: CurrentUser, id: string, input: { reaso
     submitDate: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`,
   };
   const created = await prisma.$transaction(async (tx) =>
-    tx.signingForm.create({ data: { code: await nextFormCode(tx), documentId: form.documentId, resubmitNo, resubmitReason: reason.trim(), content, createdById: user.id } }),
+    tx.signingForm.create({ data: { code: await nextFormCode(tx, form.document.departmentId), documentId: form.documentId, resubmitNo, resubmitReason: reason.trim(), content, createdById: user.id } }),
   );
   await audit({ userId: user.id, action: "form.resubmit", entity: "SigningForm", entityId: created.id, detail: { from: form.code, code: created.code, resubmitNo, reason }, ip });
   return created;

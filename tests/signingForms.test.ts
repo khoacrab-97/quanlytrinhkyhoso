@@ -2,7 +2,7 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { prisma } from "../src/lib/prisma";
-import { confirmPrint, createForm, deleteDraft, resubmitForm, updateForm, formState } from "../src/server/signingForms";
+import { confirmPrint, createForm, deleteDraft, formatFormCode, resubmitForm, updateForm, formState } from "../src/server/signingForms";
 import { performAction } from "../src/server/workflow";
 import type { CurrentUser } from "../src/server/session";
 
@@ -31,14 +31,22 @@ after(async () => {
   await prisma.$disconnect();
 });
 
-const load = (id: string) => prisma.signingForm.findUniqueOrThrow({ where: { id }, include: { document: { include: { status: true, recipient: true } } } });
+const load = (id: string) => prisma.signingForm.findUniqueOrThrow({ where: { id }, include: { document: { include: { status: true, recipient: true, department: true } } } });
+
+describe("Mã phiếu", () => {
+  test("Mã phòng - Năm - Tháng - 4 số, theo giờ Việt Nam", () => {
+    assert.equal(formatFormCode("DA", new Date("2026-11-15T03:00:00Z"), 1), "DA-2026-11-0001");
+    assert.equal(formatFormCode("DA", new Date("2026-11-30T18:00:00Z"), 25), "DA-2026-12-0025"); // 01:00 ngày 1/12 giờ Việt Nam
+  });
+});
 
 describe("Phiếu trình ký", () => {
   test("phiếu mới: lần đầu, đang soạn, sửa được", async () => {
     const f = await load(formId);
     assert.equal(f.status, "DRAFT");
     assert.equal(f.resubmitNo, 0);
-    assert.match(f.code, /^PTK-\d{4}-\d{5}$/);
+    assert.ok(f.code.startsWith(`${f.document.department.code}-`), "mã phiếu bắt đầu bằng mã phòng");
+    assert.match(f.code, /-\d{4}-\d{2}-\d{4}$/);
     await updateForm(me, formId, { content: { ...content, otherContent: "Bổ sung bản gốc" } });
   });
 
