@@ -168,10 +168,8 @@ Các lệnh khác:
 
 ## 5. Triển khai production
 
-> **Hai phương án miễn phí để trình phê duyệt:** xem bảng so sánh tại [docs/SO-SANH-PHUONG-AN.md](docs/SO-SANH-PHUONG-AN.md).
-> - **Phương án 1:** app này trên **Oracle Cloud Free**. Cài bằng một lệnh, có HTTPS và sao lưu tự động: [deploy/oracle/HUONG-DAN.md](deploy/oracle/HUONG-DAN.md).
+> - **Oracle Cloud Free**: cài bằng một lệnh, có HTTPS và sao lưu tự động: [deploy/oracle/HUONG-DAN.md](deploy/oracle/HUONG-DAN.md).
 > - **Máy chủ Windows Server của công ty** (dùng trong mạng nội bộ, không cần Docker): [deploy/windows/HUONG-DAN.md](deploy/windows/HUONG-DAN.md).
-> - **Phương án 2:** bản gọn chạy trên **Google Sheets + Apps Script**, làm mới dữ liệu mỗi năm: [google-apps-script/HUONG-DAN.md](google-apps-script/HUONG-DAN.md).
 
 ### Cách 1: Docker Compose (khuyến nghị)
 
