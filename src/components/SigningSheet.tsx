@@ -87,9 +87,9 @@ export function SigningSheet({ c, resubmitNo, reason, code, locked, footer }: { 
               <Cell center />
             </tr>
             <tr>
-              <Cell h={32} center valign="bottom">{c.preparerName || DOTS}</Cell>
-              <Cell center valign="bottom">{c.relatedPersonName || DOTS}</Cell>
-              <Cell center valign="bottom">{c.managerName || DOTS}</Cell>
+              <Cell h={32} center bold valign="bottom">{c.preparerName || DOTS}</Cell>
+              <Cell center bold valign="bottom">{c.relatedPersonName || DOTS}</Cell>
+              <Cell center bold valign="bottom">{c.managerName || DOTS}</Cell>
               <Cell center />
             </tr>
             <tr>

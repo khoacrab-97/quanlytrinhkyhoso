@@ -4,7 +4,7 @@ import { handler } from "@/server/api";
 /** Danh mục đang hoạt động phục vụ form và bộ lọc */
 export const GET = handler(async ({ user }) => {
   const [projectRows, types, departments, users, contractors, statuses, errorCategories, customFields] = await Promise.all([
-    prisma.project.findMany({ where: { active: true }, select: { id: true, code: true, name: true, investor: true, partners: { select: { contractorId: true } } }, orderBy: { code: "asc" } }),
+    prisma.project.findMany({ where: { active: true }, select: { id: true, code: true, name: true, investor: true, investorId: true, partners: { select: { contractorId: true } } }, orderBy: { code: "asc" } }),
     prisma.documentType.findMany({ where: { active: true }, select: { id: true, code: true, name: true }, orderBy: { name: "asc" } }),
     prisma.department.findMany({ where: { active: true }, select: { id: true, code: true, name: true, divisions: { where: { active: true }, select: { id: true, name: true }, orderBy: { code: "asc" } } }, orderBy: { name: "asc" } }),
     prisma.user.findMany({ where: { active: true }, select: { id: true, fullName: true, departmentId: true, divisionId: true, position: true, role: true, isRelatedPerson: true, isDeptManager: true }, orderBy: { fullName: "asc" } }),

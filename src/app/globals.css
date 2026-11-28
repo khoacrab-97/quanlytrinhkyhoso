@@ -68,12 +68,27 @@ body {
   display: none;
 }
 @media print {
+  /* Lề trang = 0 để trình duyệt không in tiêu đề trang, ngày giờ, đường link ở đầu/cuối tờ giấy;
+     lề thật của phiếu đặt bằng vị trí của .print-sheet bên dưới */
   @page {
-    size: A4 portrait;
-    margin: 10mm 6mm;
+    size: A5 landscape;
+    margin: 0;
   }
   body:has(.print-sheet) main > :not(.print-root) {
     display: none !important;
+  }
+  /* Chỉ in tờ phiếu (mã phiếu + bảng mẫu); mọi nội dung khác trên trang đều ẩn */
+  body:has(.print-sheet) * {
+    visibility: hidden !important;
+  }
+  body:has(.print-sheet) .print-sheet,
+  body:has(.print-sheet) .print-sheet * {
+    visibility: visible !important;
+  }
+  body:has(.print-sheet) .print-sheet {
+    position: fixed;
+    top: 6mm;
+    left: 6mm;
   }
   body:has(.print-sheet) .print-root {
     border: 0 !important;

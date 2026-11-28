@@ -113,10 +113,11 @@ export function FormEditor({ id, initial, initialReason, resubmitNo: fixedNo, pr
   const contractorOpts: Opt[] = lk.contractors.map((t) => ({ value: t.id, label: t.name, name: t.name }));
   const project = lk.projects.find((p) => p.id === nd.projectId);
   // Dự án có gắn đối tác thì chỉ chọn trong danh sách đối tác của dự án
-  const partnerOpts = project?.partnerIds.length ? contractorOpts.filter((t) => project.partnerIds.includes(t.value)) : contractorOpts;
-  // Tạo hộ: người cùng phòng ban (Quản trị viên chọn được mọi người, trừ Ban kiểm soát)
+  // Chủ đầu tư của dự án luôn có trong danh sách (không lặp nếu đã là đối tác)
+  const partnerOpts = project?.partnerIds.length ? contractorOpts.filter((t) => project.partnerIds.includes(t.value) || t.value === project.investorId) : contractorOpts;
+  // Tạo hộ: người cùng phòng ban, không gồm Quản lý phòng ban (Quản trị viên chọn được mọi người, trừ Ban kiểm soát)
   const bksDeptId = lk.departments.find((d) => d.code === "BKS")?.id;
-  const others = lk.users.filter((u) => u.id !== me.id && u.departmentId && u.departmentId !== bksDeptId && (me.role === "ADMIN" || u.departmentId === myDeptId));
+  const others = lk.users.filter((u) => u.id !== me.id && !u.isDeptManager && u.departmentId && u.departmentId !== bksDeptId && (me.role === "ADMIN" || u.departmentId === myDeptId));
   const set = (k: keyof SheetContent, v: string) => setC((x) => ({ ...x, [k]: v }));
   const pickPreparer = (uid: string) => {
     setPreparerId(uid);
@@ -130,9 +131,11 @@ export function FormEditor({ id, initial, initialReason, resubmitNo: fixedNo, pr
       const p = lk.projects.find((x) => x.id === v);
       // Chọn dự án -> tự điền tên dự án và Chủ đầu tư; nếu dự án chỉ có 1 đối tác thì chọn luôn đối tác đó
       const only = p?.partnerIds.length === 1 ? lk.contractors.find((t) => t.id === p.partnerIds[0]) : undefined;
-      setNd((x) => ({ ...x, projectId: v, contractorId: only?.id ?? "" }));
-      if (only) setTxt((x) => ({ ...x, partner: only.name }));
-      if (p) setC((x) => ({ ...x, projectName: p.name, partnerName: only?.name ?? p.investor ?? "" }));
+      // Chọn sẵn đối tác duy nhất của dự án, nếu không thì chọn sẵn Chủ đầu tư (tên đầy đủ)
+      const pick = only ?? lk.contractors.find((t) => t.id === p?.investorId);
+      setNd((x) => ({ ...x, projectId: v, contractorId: pick?.id ?? "" }));
+      setTxt((x) => ({ ...x, partner: pick?.name ?? "" }));
+      if (p) setC((x) => ({ ...x, projectName: p.name, partnerName: pick?.name ?? p.investor ?? "" }));
     }
     if (k === "departmentId") {
       const d = lk.departments.find((x) => x.id === v);
@@ -216,8 +219,8 @@ export function FormEditor({ id, initial, initialReason, resubmitNo: fixedNo, pr
                     <CatalogPick typed={typed} id={nd.projectId} text={txt.project} options={projectOpts} placeholder="— Chọn —" onPick={(v, t) => { setNew("projectId", v); setTxt((x) => ({ ...x, project: t })); if (!v) set("projectName", t); }} />
                   </Field>
                   <Field label="Phòng ban trình ký" required hint={canPickDept ? undefined : "Theo phòng ban của người lập"}><Select disabled={!canPickDept} value={nd.departmentId} onChange={(e) => setNew("departmentId", e.target.value)} placeholder="— Chọn —" options={lk.departments.map((d) => ({ value: d.id, label: d.name }))} /></Field>
-                  <Field label="Chủ đầu tư / NCC / Thầu phụ" hint={project ? (project.partnerIds.length ? `Đối tác của dự án${project.investor ? ` · CĐT: ${project.investor}` : ""}` : "Dự án chưa gắn đối tác (Danh mục > Công trình / dự án)") : "Chọn dự án trước"}>
-                    <CatalogPick typed={typed} id={nd.contractorId} text={txt.partner} options={partnerOpts} placeholder={project?.investor ? `CĐT: ${project.investor}` : "— Không chọn —"} onPick={(v, t) => { setNew("contractorId", v); setTxt((x) => ({ ...x, partner: t })); if (!v) set("partnerName", t); }} />
+                  <Field label="Chủ đầu tư / NCC / Thầu phụ" hint={project ? (project.partnerIds.length || project.investorId ? "Đối tác của dự án" : "Dự án chưa gắn đối tác (Danh mục > Công trình / dự án)") : "Chọn dự án trước"}>
+                    <CatalogPick typed={typed} id={nd.contractorId} text={txt.partner} options={partnerOpts} placeholder="— Không chọn —" onPick={(v, t) => { setNew("contractorId", v); setTxt((x) => ({ ...x, partner: t })); if (!v) set("partnerName", t); }} />
                   </Field>
                   <Field label="Số hồ sơ / số hiệu văn bản"><input className="input" value={nd.docNumber} onChange={(e) => setNew("docNumber", e.target.value)} /></Field>
                 </div>
@@ -258,7 +261,7 @@ export function FormEditor({ id, initial, initialReason, resubmitNo: fixedNo, pr
         </div>
       </div>
 
-      <Card title="Xem trước bản in" subtitle="Khổ A4 · Times New Roman 10pt · đúng bố cục mẫu công ty" bodyClass="scroll-thin overflow-x-auto bg-slate-100">
+      <Card title="Xem trước bản in" subtitle="Khổ A5 ngang · Times New Roman 10pt · đúng bố cục mẫu công ty" bodyClass="scroll-thin overflow-x-auto bg-slate-100">
         <div className="inline-block bg-white p-[6mm] shadow">
           <SigningSheet c={c} resubmitNo={resubmitNo} reason={reason} />
         </div>

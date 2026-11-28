@@ -57,7 +57,7 @@ export async function download(url: string) {
 }
 
 export type Lookups = {
-  projects: { id: string; code: string; name: string; investor: string | null; partnerIds: string[] }[];
+  projects: { id: string; code: string; name: string; investor: string | null; investorId: string | null; partnerIds: string[] }[];
   types: { id: string; code: string; name: string }[];
   departments: { id: string; code: string; name: string; divisions: { id: string; name: string }[] }[];
   users: { id: string; fullName: string; departmentId: string | null; divisionId: string | null; position: string | null; role: string; isRelatedPerson: boolean; isDeptManager: boolean }[];

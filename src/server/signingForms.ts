@@ -99,16 +99,19 @@ export async function createForm(input: z.infer<typeof createSchema>, user: Curr
     let preparerId = user.id;
     // Tạo giúp hộ: chỉ người cùng phòng ban (Quản trị viên chọn được mọi người); phòng ban theo người được tạo hộ
     if (nd.preparerId && nd.preparerId !== user.id) {
-      const p = await prisma.user.findFirst({ where: { id: nd.preparerId, active: true, deletedAt: null }, select: { id: true, departmentId: true, department: { select: { code: true } } } });
+      const p = await prisma.user.findFirst({ where: { id: nd.preparerId, active: true, deletedAt: null }, select: { id: true, departmentId: true, isDeptManager: true, department: { select: { code: true } } } });
       if (!p?.departmentId) throw new AppErrorLite(400, "Người được tạo hộ không tồn tại hoặc chưa có phòng ban");
       if (user.role !== "ADMIN" && p.departmentId !== user.departmentId) throw new AppErrorLite(403, "Chỉ được tạo hộ người cùng phòng ban");
+      if (p.isDeptManager) throw new AppErrorLite(400, "Không tạo hộ cho Quản lý phòng ban");
       if (p.department?.code === BKS_DEPARTMENT_CODE) throw new AppErrorLite(400, "Ban kiểm soát không tham gia lập phiếu trình ký");
       preparerId = p.id;
       departmentId = p.departmentId;
     }
     if (nd.contractorId) {
       const partners = await prisma.projectPartner.findMany({ where: { projectId: nd.projectId }, select: { contractorId: true } });
-      if (partners.length && !partners.some((x) => x.contractorId === nd.contractorId)) {
+      const project = await prisma.project.findUnique({ where: { id: nd.projectId }, select: { investorId: true } });
+      // Hợp lệ khi là đối tác của dự án hoặc là Chủ đầu tư của dự án
+      if (partners.length && nd.contractorId !== project?.investorId && !partners.some((x) => x.contractorId === nd.contractorId)) {
         throw new AppErrorLite(400, "Chủ đầu tư / NCC / thầu phụ không thuộc dự án đã chọn");
       }
     }
